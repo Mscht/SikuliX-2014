@@ -276,7 +276,7 @@ public class JythonScriptRunner implements IScriptRunner {
 
     msg = "script";
     if (forIDE != null) {
-      msg += " [ " + forIDE[1] + " ]";
+      msg += " [ " + (forIDE.length > 1 ? forIDE[1] : forIDE[0]) + " ]";
     }
     if (errorLine != -1) {
       //log(-1,_I("msgErrorLine", srcLine));
