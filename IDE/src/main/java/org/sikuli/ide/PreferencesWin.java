@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan 2013
@@ -395,7 +395,7 @@ public class PreferencesWin extends JFrame {
           btnCancelActionPerformed(e);
         }
       });
-      
+
       this.addWindowListener(new WindowAdapter() {
         public void windowClosing(WindowEvent we) {
           _btnCancel.doClick();
@@ -500,8 +500,8 @@ public class PreferencesWin extends JFrame {
       pref.setPrefMoreTextOCR(true);
     }
     if (old_cap_hkey != cap_hkey || old_cap_mod != cap_mod) {
-      ide.removeCaptureHotkey(old_cap_hkey, old_cap_mod);
-      ide.installCaptureHotkey(cap_hkey, cap_mod);
+      ide.removeCaptureHotkey();
+      ide.installCaptureHotkey();
     }
     pref.setCheckUpdate(chkAutoUpdate.isSelected());
 
@@ -523,8 +523,8 @@ public class PreferencesWin extends JFrame {
     pref.setCaptureHotkey(_old_cap_hkey);
     pref.setCaptureHotkeyModifiers(_old_cap_mod);
     if (old_cap_hkey != _old_cap_hkey || old_cap_mod != _old_cap_mod) {
-      ide.removeCaptureHotkey(old_cap_hkey, old_cap_mod);
-      ide.installCaptureHotkey(_old_cap_hkey, old_cap_mod);
+      ide.removeCaptureHotkey();
+      ide.installCaptureHotkey();
     }
     pref.setAutoNamingMethod(_autoNamingMethod);
     pref.setCheckUpdate(_chkAutoUpdate);
@@ -558,7 +558,7 @@ public class PreferencesWin extends JFrame {
   private void initLangPrefs() {
     String[] SUPPORT_LOCALES = {
       "es", "pt_BR", "ar", "fr", "ru", "bg", "he", "sv", "ca", "ja", "tr",
-      "da", "ko", "uk", "de", "nl", "zh_CN", "en_US", "pl", "zh_TW"
+      "da", "ko", "uk", "de", "nl", "zh_CN", "en_US", "pl", "zh_TW", "ta_IN"
     };
     Locale[] sortedLocales = new Locale[SUPPORT_LOCALES.length];
     int count = 0;
@@ -573,6 +573,7 @@ public class PreferencesWin extends JFrame {
       sortedLocales[count++] = l;
     }
     Arrays.sort(sortedLocales, new Comparator<Locale>() {
+			@Override
       public int compare(Locale l1, Locale l2) {
         return l1.getDisplayLanguage().compareTo(l2.getDisplayLanguage());
       }

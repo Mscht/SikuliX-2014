@@ -16,15 +16,15 @@ import org.sikuli.basics.Debug;
 
 /**
  * This class globally collects
- * all running observations and tracks the created events.<br />
+ * all running observations and tracks the created events.<br>
  */
 public class Observing {
 
-  private static final String me = "Observing";
+  private static final String me = "Observing: ";
   private static final int lvl = 3;
 
   private static void log(int level, String message, Object... args) {
-    Debug.logx(level, "", me + ": " + message, args);
+    Debug.logx(level, me + message, args);
   }
   
   private Observing() {

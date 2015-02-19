@@ -1,11 +1,12 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
  */
 package org.sikuli.script;
 
+import org.sikuli.basics.Animator;
 import org.sikuli.basics.Settings;
 import org.sikuli.basics.Debug;
 import java.awt.*;
@@ -26,7 +27,7 @@ public class ScreenHighlighter extends OverlayTransparentWindow implements Mouse
   final static int DRAGGING_TIME = 200;
   static int MARGIN = 20;
   static Set<ScreenHighlighter> _opened = new HashSet<ScreenHighlighter>();
-  Screen _scr;
+  IScreen _scr;
   BufferedImage _screen = null;
   BufferedImage _darker_screen = null;
   BufferedImage bi = null;
@@ -35,13 +36,13 @@ public class ScreenHighlighter extends OverlayTransparentWindow implements Mouse
   boolean _borderOnly = false;
   boolean _native_transparent = false;
   boolean _double_buffered = false;
-  OverlayAnimator _anim;
+  Animator _anim;
   BasicStroke _StrokeCross = new BasicStroke(1);
   BasicStroke _StrokeCircle = new BasicStroke(2);
   BasicStroke _StrokeBorder = new BasicStroke(3);
-  OverlayAnimator _aniX, _aniY;
+  Animator _aniX, _aniY;
 
-  public ScreenHighlighter(Screen scr, String color) {
+  public ScreenHighlighter(IScreen scr, String color) {
     _scr = scr;
     init();
     setVisible(false);
@@ -63,7 +64,7 @@ public class ScreenHighlighter extends OverlayTransparentWindow implements Mouse
             }
             try {
               _targetColor = new Color(cR, cG, cB);
-            } catch (IllegalArgumentException ex) {             
+            } catch (IllegalArgumentException ex) {
             }
           }
         } else {
@@ -170,10 +171,8 @@ public class ScreenHighlighter extends OverlayTransparentWindow implements Mouse
     }
     _borderOnly = true;
     Region r;
-    if (_native_transparent) {
-      r = r_;
-    } else {
-      r = r_.grow(3);
+    r = r_.grow(3);
+    if (!_native_transparent) {
       captureScreen(r.x, r.y, r.w, r.h);
     }
     setLocation(r.x, r.y);
@@ -197,7 +196,7 @@ public class ScreenHighlighter extends OverlayTransparentWindow implements Mouse
   }
 
   private void captureScreen(int x, int y, int w, int h) {
-    ScreenImage img = _scr.capture(x, y, w, h);
+    ScreenImage img = ((Screen)_scr).captureforHighlight(x, y, w, h);
     _screen = img.getImage();
     float scaleFactor = .6f;
     RescaleOp op = new RescaleOp(scaleFactor, 0, null);

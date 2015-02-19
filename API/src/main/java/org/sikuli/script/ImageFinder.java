@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -24,18 +24,19 @@ import org.sikuli.basics.Settings;
  * completely implementing the OpenCV usage on the Java level.
  */
 public class ImageFinder extends Finder {
+  
+  static RunTime runTime = RunTime.get();
 
-  private static String me = "ImageFinder";
+  private static String me = "ImageFinder: ";
   private static int lvl = 3;
-
   private static void log(int level, String message, Object... args) {
-    Debug.logx(level, "", me + ": " + message, args);
+    Debug.logx(level, me + message, args);
   }
   private boolean isImageFinder = true;
   protected boolean isImage = false;
   protected Region region = null;
   protected boolean isRegion = false;
-  protected Screen screen = null;
+  protected IScreen screen = null;
   protected boolean isScreen = false;
   protected int offX, offY;
   protected long MaxTimePerScan;
@@ -55,7 +56,7 @@ public class ImageFinder extends Finder {
     init(base, null, null);
   }
 
-  public ImageFinder(Screen scr) {
+  public ImageFinder(IScreen scr) {
     init(null, scr, null);
   }
 
@@ -71,7 +72,7 @@ public class ImageFinder extends Finder {
     log(3, "search in: \n%s", base);
   }
 
-  private void init(Image base, Screen scr, Region reg) {
+  private void init(Image base, IScreen scr, Region reg) {
     log(3, "init");
     if (base != null) {
       setImage(base);
@@ -123,7 +124,7 @@ public class ImageFinder extends Finder {
     base = Image.createMat(bImg);
   }
 
-  public boolean setScreen(Screen scr) {
+  public boolean setScreen(IScreen scr) {
     reset();
     if (scr != null) {
       screen = scr;

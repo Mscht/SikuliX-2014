@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -30,10 +30,12 @@ import org.sikuli.basics.Settings;
  */
 @Deprecated
 public class ImageLocator {
+  
+  static RunTime runTime = RunTime.get();
 
   static ArrayList<String> pathList = new ArrayList<String>();
   static int firstEntries = 1;
-  static File _cache_dir_global = new File(Settings.BaseTempPath, "sikuli_cache/SIKULI_GLOBAL/");
+  static File _cache_dir_global = new File(RunTime.get().BaseTempPath, "sikuli_cache/SIKULI_GLOBAL/");
   static Map<URI, String> _cache = new HashMap<URI, String>();
 
   static {
@@ -60,7 +62,7 @@ public class ImageLocator {
    */
   @Deprecated
   public static String[] getImagePath() {
-    return ImagePath.getImagePath();
+    return ImagePath.get();
   }
 
   /**

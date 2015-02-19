@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan 2013
@@ -13,21 +13,20 @@ import java.io.*;
 import javax.imageio.*;
 import javax.swing.*;
 import javax.swing.event.*;
-import org.sikuli.basics.LoadingSpinner;
 import org.sikuli.basics.Debug;
 import org.sikuli.script.Finder;
 import org.sikuli.script.Location;
 import org.sikuli.script.Match;
 import org.sikuli.script.Region;
+import org.sikuli.script.Screen;
 import org.sikuli.script.ScreenImage;
-import org.sikuli.script.ScreenUnion;
 
 class PatternPaneTargetOffset extends JPanel implements MouseListener, MouseWheelListener, ChangeListener {
 
   final static String me = "PatternPaneTargetOffset: ";
 	final static int DEFAULT_H = 300;
 	final static float DEFAULT_PATTERN_RATIO = 0.4f;
-	private static Color COLOR_BG_LINE = new Color(210, 210, 210, 130);
+	private static final Color COLOR_BG_LINE = new Color(210, 210, 210, 130);
 	ScreenImage _simg;
 	BufferedImage _img;
 	Match _match = null;
@@ -63,9 +62,10 @@ class PatternPaneTargetOffset extends JPanel implements MouseListener, MouseWhee
 					f.find(patFilename);
 					if (f.hasNext()) {
 //TODO rewrite completely for ScreenUnion
-            screenUnion.getScreen().setAsScreenUnion();
+            Screen s = (Screen) screenUnion.getScreen();
+            s.setAsScreenUnion();
 						_match = f.next();
-            screenUnion.getScreen().setAsScreen();
+            s.setAsScreen();
 						if (initOffset != null) {
 							setTarget(initOffset.x, initOffset.y);
 						} else {
@@ -90,7 +90,7 @@ class PatternPaneTargetOffset extends JPanel implements MouseListener, MouseWhee
 	}
 
 	public void setTarget(int dx, int dy) {
-		Debug.log(3, me + "new target: " + dx + "," + dy);
+		Debug.log(4, me + "new target: " + dx + "," + dy);
 		if (_match != null) {
 			Location center = _match.getCenter();
 			_tar.x = center.x + dx;

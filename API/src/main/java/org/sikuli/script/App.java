@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -21,7 +21,8 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import org.sikuli.basics.FileManager;
+import java.util.HashMap;
+import java.util.Map;
 import org.sikuli.natives.OSUtil;
 import org.sikuli.natives.SysUtil;
 
@@ -34,18 +35,98 @@ import org.sikuli.natives.SysUtil;
  * (cosult the docs for more info)
  */
 public class App {
+  
+  static RunTime runTime = RunTime.get();
 
   protected static final OSUtil _osUtil = SysUtil.getOSUtil();
   protected String _appName;
   protected int _pid;
+  private static final Map<Type, String> appsWindows; 
+  private static final Map<Type, String> appsMac;
+  private static final Region aRegion = new Region();
 
   static {
 //TODO Sikuli hangs if App is used before Screen
     new Screen();
 		String libName = _osUtil.getLibName();
 		if (!libName.isEmpty()) {
-			FileManager.loadLibrary(libName);
+			RunTime.loadLibrary(libName);
 		}
+    appsWindows = new HashMap<Type, String>();
+    appsWindows.put(Type.EDITOR, "Notepad");
+    appsWindows.put(Type.BROWSER, "Google Chrome");
+    appsWindows.put(Type.VIEWER, "");
+    appsMac = new HashMap<Type, String>();
+    appsMac.put(Type.EDITOR, "TextEdit");
+    appsMac.put(Type.BROWSER, "Safari");
+    appsMac.put(Type.VIEWER, "Preview");
+}
+  
+  public static enum Type {
+    EDITOR, BROWSER, VIEWER
+  }
+    
+  public static Region start(Type appType) {
+    App app = null;
+    Region win;
+    try {
+      if (Type.EDITOR.equals(appType)) {
+        if (runTime.runningMac) {
+          app = new App(appsMac.get(appType));
+          if (app.window() != null) {
+            app.focus();
+            aRegion.wait(0.5);
+            win = app.window();
+            aRegion.click(win);
+            aRegion.write("#M.a#B.");
+            return win;
+          } else {
+            app.open();
+            win = app.waitForWindow();
+            app.focus();
+            aRegion.wait(0.5);
+            aRegion.click(win);
+            return win;
+          }
+        }      
+        if (runTime.runningWindows) {
+          app = new App(appsWindows.get(appType));
+          if (app.window() != null) {
+            app.focus();
+            aRegion.wait(0.5);
+            win = app.window();
+            aRegion.click(win);
+            aRegion.write("#C.a#B.");
+            return win;
+          } else {
+            app.open();
+            win = app.waitForWindow();
+            app.focus();
+            aRegion.wait(0.5);
+            aRegion.click(win);
+            return win;
+          }
+        }      
+      } else if (Type.BROWSER.equals(appType)) {
+        return null;
+      } else if (Type.VIEWER.equals(appType)) {
+        return null;
+      }
+    } catch (Exception ex) {}
+    return null;
+  }
+    
+  public Region waitForWindow() {
+    return waitForWindow(5);
+  }
+
+  public Region waitForWindow(int seconds) {
+    Region win = null;
+    while ((win = window()) == null && seconds > 0) {
+      aRegion.wait(0.5);
+      seconds -= 0.5;
+    }
+    return win;
   }
 
   private static Region asRegion(Rectangle r) {
@@ -60,7 +141,7 @@ public class App {
 	 * creates an instance for an app with this name
 	 * (nothing done yet)
 	 *
-	 * @param appName
+	 * @param appName name
 	 */
 	public App(String appName) {
     _appName = appName;
@@ -74,7 +155,7 @@ public class App {
 
 	/**
 	 * creates an instance for an app with this name and tries to open it
-	 * @param appName
+	 * @param appName name
 	 * @return the App instance or null on failure
 	 */
 	public static App open(String appName) {
@@ -84,7 +165,7 @@ public class App {
 	/**
 	 * tries to identify a running app with the given name
 	 * and then tries to close it
-	 * @param appName
+	 * @param appName name
 	 * @return 0 for success -1 otherwise
 	 */
 	public static int close(String appName) {
@@ -96,7 +177,7 @@ public class App {
 	 * if not running tries to open it
 	 * and tries to make it the foreground application
 	 * bringing its topmost window to front
-	 * @param appName
+	 * @param appName name
 	 * @return the App instance or null on failure
 	 */
 	public static App focus(String appName) {
@@ -108,8 +189,8 @@ public class App {
 	 * if not running tries to open it
 	 * and tries to make it the foreground application
 	 * bringing its window with the given number to front
-	 * @param appName
-	 * @param num
+	 * @param appName name
+	 * @param num window
 	 * @return the App instance or null on failure
 	 */
   public static App focus(String appName, int num) {
@@ -128,7 +209,7 @@ public class App {
 	/**
 	 * tries to make it the foreground application
 	 * bringing its window with the given number to front
-	 * @param num
+	 * @param num window
 	 * @return the App instance or null on failure
 	 */
   public App focus(int num) {
@@ -224,7 +305,7 @@ public class App {
 	 * by the window with the given number of this App instance.
 	 * The region might not be fully visible, not visible at all
 	 * or invalid with respect to the current monitor configuration (outside any screen)
-	 * @param winNum
+	 * @param winNum window
 	 * @return the region
 	 */
   public Region window(int winNum) {
@@ -263,7 +344,7 @@ public class App {
 
 	/**
 	 * sets the current textual content of the system clipboard to the given text
-	 * @param text
+	 * @param text text
 	 */
 	public static void setClipboard(String text) {
     Clipboard.putText(Clipboard.PLAIN, Clipboard.UTF8,
@@ -392,7 +473,7 @@ public class App {
    }
 
    /**
-    * Enumeration for the transfert type property in MIME types (InputStream, CharBuffer, etc.)
+    * Enumeration for the transferScriptt type property in MIME types (InputStream, CharBuffer, etc.)
     */
    public static class TransferType {
       private Class dataClass;

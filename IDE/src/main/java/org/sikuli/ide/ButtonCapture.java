@@ -1,8 +1,8 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
- * modified RaiMan 2013
+ * modified RaiMan 2014
  */
 package org.sikuli.ide;
 
@@ -197,7 +197,7 @@ class ButtonCapture extends ButtonOnToolbar implements ActionListener, Cloneable
     _isCapturing = false;
     SikuliIDE ide = SikuliIDE.getInstance();
     ide.setVisible(true);
-    ide.requestFocus();    
+    ide.requestFocus();
   }
 
   private Element getSrcElement() {
@@ -263,7 +263,10 @@ class ButtonCapture extends ButtonOnToolbar implements ActionListener, Cloneable
       pane.insertString(img);
     } else {
       if (PreferencesUser.getInstance().getPrefMoreImageThumbs()) {
-        pane.insertComponent(new EditorPatternButton(pane, imgFilename));
+        EditorPatternButton comp = EditorPatternButton.createFromFilename(pane, imgFilename, null);
+        if (comp != null) {
+          pane.insertComponent(comp);
+        }
       } else {
         pane.insertComponent(new EditorPatternLabel(pane, imgFilename, true));
       }

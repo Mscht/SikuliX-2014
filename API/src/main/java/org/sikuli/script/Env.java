@@ -1,12 +1,11 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
  */
 package org.sikuli.script;
 
-import java.awt.*;
 import org.sikuli.basics.HotkeyListener;
 import org.sikuli.basics.HotkeyManager;
 import org.sikuli.basics.OS;
@@ -25,7 +24,7 @@ public class Env {
    * @deprecated use Settings.getVersion() instead
    */
   @Deprecated
-  public static String SikuliVersion = Settings.SikuliVersion;
+  public static String SikuliVersion = "";
 
   /**
    *
@@ -43,17 +42,20 @@ public class Env {
    */
   @Deprecated
   public static String getSikuliVersion() {
-    return Settings.SikuliVersion;
+    return RunTime.get().SikuliVersion;
+  }
+  
+  protected static void setSikuliVersion(String version) {
+    SikuliVersion = version;
   }
 
   /**
    * @return current Location
-   * @throws HeadlessException
-   * @deprecated use Region.atMouse() ... instead
+   * @deprecated use {@link Mouse#at()} instead
    */
   @Deprecated
-  public static Location getMouseLocation() throws HeadlessException {
-    return Region.atMouse();
+  public static Location getMouseLocation() {
+    return Mouse.at();
   }
 
   @Deprecated
@@ -137,7 +139,7 @@ public class Env {
   /**
    * set content
    *
-   * @param text
+   * @param text text
    * @deprecated use App. ... instead
    */
   @Deprecated
@@ -147,7 +149,7 @@ public class Env {
 
   /**
    * get the lock state of the given key
-   * @param key
+   * @param key respective key specifier according class Key
    * @return true/false
    * @deprecated use Key. ... instead
    */
@@ -168,55 +170,56 @@ public class Env {
 
   /**
    *
-   * @param key
-   * @param modifiers
-   * @param listener
+   * @param key respective key specifier according class Key
+   * @param modifiers respective key specifier according class KeyModifiers
+   * @param listener a HotKeyListener instance
    * @return true if ok, false otherwise
    * @deprecated use Key. ... instead
    */
   @Deprecated
   public static boolean addHotkey(String key, int modifiers, HotkeyListener listener) {
-    return HotkeyManager.getInstance().addHotkey(key, modifiers, listener);
+    return Key.addHotkey(key, modifiers, listener);
   }
 
   /**
    *
-   * @param key
-   * @param modifiers
-   * @param listener
+   * @param key respective key specifier according class Key
+   * @param modifiers respective key specifier according class KeyModifiers
+   * @param listener a HotKeyListener instance
    * @return true if ok, false otherwise
    * @deprecated use Key. ... instead
    */
   @Deprecated
   public static boolean addHotkey(char key, int modifiers, HotkeyListener listener) {
-    return HotkeyManager.getInstance().addHotkey(key, modifiers, listener);
+    return Key.addHotkey(key, modifiers, listener);
   }
 
   /**
    *
-   * @param key
-   * @param modifiers
+   * @param key respective key specifier according class Key
+   * @param modifiers respective key specifier according class KeyModifiers
    * @return true if ok, false otherwise
    * @deprecated use Key. ... instead
    */
   @Deprecated
   public static boolean removeHotkey(String key, int modifiers) {
-    return HotkeyManager.getInstance().removeHotkey(key, modifiers);
+    return Key.removeHotkey(key, modifiers);
   }
 
   /**
    *
-   * @param key
-   * @param modifiers
+   * @param key respective key specifier according class Key
+   * @param modifiers respective key specifier according class KeyModifiers
    * @return true if ok, false otherwise
    * @deprecated use Key. ... instead
    */
   @Deprecated
   public static boolean removeHotkey(char key, int modifiers) {
-    return HotkeyManager.getInstance().removeHotkey(key, modifiers);
+    return Key.removeHotkey(key, modifiers);
   }
 
-  public static void cleanUp() {
+//TODO where to use???
+	public static void cleanUp() {
     HotkeyManager.getInstance().cleanUp();
   }
 }

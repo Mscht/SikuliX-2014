@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan 2013
@@ -17,6 +17,8 @@ import javax.swing.JComponent;
 import javax.swing.text.*;
 import org.sikuli.basics.Settings;
 import org.sikuli.basics.Debug;
+import org.sikuli.script.Runner;
+import org.sikuli.scriptrunner.ScriptingSupport;
 
 public class EditorViewFactory implements ViewFactory {
 
@@ -271,9 +273,9 @@ class SyntaxHighlightLabelView extends LabelView {
 	public SyntaxHighlightLabelView(Element elm, String contentType) {
 		super(elm);
 		sikuliContentType = contentType;
-		if (Settings.CPYTHON.equals(sikuliContentType)) {
+		if (Runner.CPYTHON.equals(sikuliContentType)) {
 			patternColors = patternColorsPython;
-		} else if (Settings.CRUBY.equals(sikuliContentType)) {
+		} else if (Runner.CRUBY.equals(sikuliContentType)) {
 			patternColors = patternColorsRuby;
 		}
 	}

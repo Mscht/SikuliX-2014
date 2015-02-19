@@ -1,0 +1,144 @@
+<h4>Build: 2015-01-14</h4>
+revised: observe: handlers (callback on observe event happened) now directly called from Java in Jython and Jruby
+<h4>Build: 2015-01-12</h4>
+<a href="https://github.com/RaiMan/SikuliX-2014/commits/master" target="_blank">see GitHub commits</a>
+<h4>Build: 2015-01-09</h4>
+again revised the Linux libVisionProxy.so build<br>
+started: make a SikuliX.exe using Launch4J
+<h4>Build: 2015-01-08</h4>
+again revised the Linux libVisionProxy.so build<br>
+finalized: on Mac now the IDE is back as Mac application
+<h4>Build: 2015-01-06</h4>
+fixed: Linux setup: libVisionProxy.so (provided or bundled) is checked and can be built on the fly during setup (tested on Ubuntu 14.04 64/32 Bit)<br>
+fixed: JRuby: did not run unsaved scripts<br>
+fixed: Java 6: Jython version is checked: must be 2.5 and is used with setup (having bundled 2.7 terminates)<br>
+changed: Jruby now 1.7.18, Jython now 2.7-b3<br>
+fixed: version 1.1.0 now compiles on Java 6 again
+<h4>Build: 2014-12-28</h4>
+fixed: problem with CheckLastSeen when pattern is used<br>
+fixed: only onAppear handler was called on event (other handlers not called)
+<h4>Build: 2014-12-03</h4>
+revised: silent setup: replaced download popups with log messages to avoid any GUI usage
+fixed: write(#DEL.) did not work
+added: Key.dump(): get a list of keynames for write()
+<h4>Build: 2014-11-23</h4>
+fixed: minor -  <a href="https://github.com/RaiMan/SikuliX-2014/commits/master" target="_blank">see GitHub commits</a>
+<h4>Build: 2014-11-13</h4>
+fixed: detection of Mac OSX 10.10
+<h4>Build: 2014-10-31</h4>
+fixed: Windows: offline setup did not work
+<h4>Build: 2014-10-20</h4>
+fixed: JRubyAddons (1.1.0-6.jar) back again for download during setup
+<h4>Build: 2014-10-16</h4>
+fixed: offline setup now includes library jars<br>
+finalized: unattended setup
+<h4>Build: 2014-10-14</h4>
+fixed: a crash on Windows because of a bug in the handling of the libs folder<br>
+finally revised: download of needed stuff during setup
+<h4>Build: 2014-10-12</h4>
+fixed: setup: export resources (Lib folder, command files, ...)<br>
+revised: Jython, JRuby, libs-jars and sikulixapi.jar now loaded from MavenCentral/OSSRH
+<h4>Build: 2014-10-05</h4>
+changed: managing ImageCache is per Settings.setImageCache(n), which sets the max. in-memory-images to n MB (start value 64). 0 will switch off caching and clear the cache immediately.<br>
+completely revised image loading and caching.<br>
+added: a feature to store key-value-pairs in the persistent preferences storage, so they can be retrieved in a future SikuliX session<br>
+... details see javadocs Sikulix.prefStore, ...load, ...remove<br>
+added: Region.isValid to check, wether a Region can access a screen<br>
+added: Region.mouseMove(x,y) and Mose.move(x,y): both move the mouse from it's current position to the given offset
+<h4>Build: 2014-09-25</h4>
+revised: getting parts of a region or an image based on a raster overlay of even rows, columns or cells<br>
+documentation: started to revise the docs
+<h4>Build: 2014-09-24</h4>
+added: Region: getLastTime() returns the duration in msecs of the last find in the given region (similar: Match.getTime())
+<h4>Build: 2014-09-23</h4>
+fixed: Jython import problem in build 2014-09-22 (addModPath)<br>
+added: Sikuli.py: some convenience functions for path handling<br>
+added: Sikuli.py: new popXXX, input, select
+<h4>Build: 2014-09-17</h4>
+added: IDE: Preview: renaming an image now changes all occurences of the same imagename in this script<br>
+added: IDE: scriptwindow tab menu: reset now makes a reparse to reflect changes in the preferences (e.g. how images are shown)
+<h4>Build: 2014-09-16</h4>
+fixed: user parameters from command line after -- or --args are now available again in sys.argv[1 .. n]<br>
+revised: IDE: renaming images in Preview (special case: overwrite existing image)
+<h4>Build: 2014-09-13</h4>
+revised/fixed: delete not used images on save still in some special cases deleted images erroneously
+<h4>Build: 2014-09-12</h4>
+added: OCR-read the text from a given image file (convenience: Image.text(imagefile)) or an Image object
+<h4>Build: 2014-09-11</h4>
+fixed: problem with addImagePath() crashing Jython import<br>
+this is the first build of 1.1.0 (first commit: 0107b25)
+<h4>Build: 2014-09-10</h4>
+new: javadoc and sources jars of sikulixapi now available here<br>
+new: Match.getTime() returns elapsed time in millisecs of the corresponding search op
+<h4>Build: 2014-09-07</h4>
+new: ScriptRunner.run(script_folder) will run the script, scripting language is detected from contained scriptfile.<br>
+can be used to setup batched script runs.<br>
+revised: editor tab context menu features<br>
+revised: IDE: usage of tempfiles
+<h4>Build: 2014-08-30</h4>
+temp fix: when running on Mac OSX 10.10 the search feature is switched of, to avoid startup crash of IDE (to be fixed later)<br>
+fixed: now compiles on Mac with Java 8<br>
+fixed: some problems after Scriptrunner restructuring
+<h4>Build: 2014-08-10</h4>
+revised: final setup test now the same for API/Jython/JRuby, more features are tested, more verbose logging
+<h4>Build: 2014-08-09</h4>
+revised: handling of images in Image/ImagePath completely switched to URL's<br>
+revised: IDE: tab close and script save - consistent handling of image cache - might still have odds
+<h4>Build: 2014-08-05</h4>
+added: callback feature to jython runner, now logging redirect works in Jython scripting<br>
+added: now even user logs can be redirected, setLoggerAll now redirects info, action, error, debug and user
+<h4>Build: 2014-08-04</h4>
+revised: setup<br>
+JRuby: gem should be useable, rspec+ package seperate setup option
+<h4>Build: 2014-07-31</h4>
+added: Sikuli's log messages can be redirected to a private logger instance (see java docs Debug)<br>
+brought back for JRuby: rspec, cucumber support is again bundled
+<h4>Build: 2014-07-31</h4>
+fixed some setup problems
+now the libs folder is always exported to the parent folder when sikulixapi.jar is used<br>
+switched off JRuby IDE stdxxx redirection for now - problems, when running IDE from commandline
+<h4>Build: 2014-07-24</h4>
+added: Michaeal Johnsons VNC solution<br>
+revised: build process and collectjars
+<h4>Build: 2014-07-23</h4>
+revised: lib export when running with sikulixapi.jar: exported to parent folder of jar in all cases.<br>
+added: a usecase for sikulixapi.jar from OSSRH in Maven projects (on git)
+<h4>Build: 2014-07-22</h4>
+finally fixed: problems after migrating to new version/naming/structural concept <br>
+setup: API (option 2) now contained in setup - no extra download<br>
+sikulixapi.jar for MavenCentral: Libs splitted into 3 system specific parts Libswin, Libsmac and LibsLux
+<h4>Build: 2014-07-21</h4>
+finally fixed: problems after migrating to new version/naming/structural concept <br>
+switched of yellow splash-screens at script run
+<h4>Build: 2014-07-17</h4> (first build of 1.1.0-Beta4)
+revised: IDE save: handling of images <br>
+revised: HotKeys: reset at scriptend in IDE<br>
+revised: Mouse: new classes Keys and Device for synching<br>
+<h4>Build: 2014-06-29</h4>
+revised: IDE help menu: post question, report bug: version/system/java info in clipboard, to support pasting<br>
+fixed: IDE crash Java NPE: if Tesseract not working and auto-image-naming is text/OCR
+<h4>Build: 2014-06-28 (this is the release status of 1.1.0-Beta2)</h4>
+fixed: IDE terminates on trying to open a non sikuli directory or an incorrect sikuli project<br>
+fixed: possible loss of images at save (images in comments, images given with path)<br>
+fixed: multi-monitor issues with respect to mouse actions (Screen(0) no longer is the primary monitor in all cases, but Screen.getPrimaryScreen() is)<br>
+fixed: out-of-bounds crash during error eval when running from command line (thanks to github user fpmchu)<br>
+fixed: IDE: NPE on termination when running from command line<br>
+fixed: bug 1330348: running Java: ImagePath is set to working directory if no path is set before first image search<br>
+fixed: possible NPE in special situations (mouse moved to invalid location)<br>
+fixed: the native library problems on Windows when using 32-Bit Java<br>
+added: Screen.all() makes a ScreenUnion of all monitors, on Python level ALL is predefined and can be used as ALL.function() like a Screen/Region<br>
+added: reset() to renew the multimonitor configuration inline on Python level<br>
+added: Settings.OcrLanguage is now accepted by Tesseract (after using org.sikuli.script.TextRecognizer.reset())<br>
+added: images can now be loaded from jars (see JavaDocs::ImagePath)<br>
+revised: completely: observe processing (see JavaDocs for now)<br>
+revised: further reduced error verbosity at script load and creating image thumbnails<br>
+revised: class Mouse, added Mouse.at() to get the mouse location, external mouse moves are detected, mouse use should now be thread safe<br>
+revised: moved the handling of capture and stop hotkey to HotkeyManager to prepare a more general usability (run on command line, using callbacks)<br>
+revised: Region.write() and it's javadoc (alternative for type() with more features)<br>
+revised: the native build for Linux, Mac and Windows (now using MinGW from http://win-builds.org/)<br>
+revised: JRuby support: many minors (see GitHub)<br>
+<br>
+... more can be found in commits before 2014-05-01 on GitHub
+<hr>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -9,7 +9,7 @@ package org.sikuli.script;
 import java.awt.event.InputEvent;
 
 /**
- * complementing class Key with the constants for the modifier keys<br />
+ * complementing class Key with the constants for the modifier keys<br>
  * only still there for backward compatibility (is already duplicated in Key)
  */
 public class KeyModifier {

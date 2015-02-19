@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -10,6 +10,7 @@ import java.awt.image.BufferedImage;
 import org.sikuli.basics.Settings;
 import org.sikuli.basics.FileManager;
 import org.sikuli.basics.Debug;
+import org.sikuli.basics.ResourceLoader;
 import java.io.*;
 import java.util.LinkedList;
 import java.util.List;
@@ -24,12 +25,15 @@ import org.sikuli.natives.Vision;
  * Will be rewritten for use of Tess4J - Java only implementation
  */
 public class TextRecognizer {
+  
+  static RunTime runTime = RunTime.get();
 
   private static TextRecognizer _instance = null;
-  private static boolean _init_succeeded = false;
+  private static boolean initSuccess = false;
+	private static int lvl = 3;
 
   static {
-    FileManager.loadLibrary("VisionProxy");
+    RunTime.loadLibrary("VisionProxy");
   }
 
   private TextRecognizer() {
@@ -37,25 +41,32 @@ public class TextRecognizer {
   }
 
   private void init() {
-    String path;
-    File fpath = null;
+    File fTessdataPath = null;
+    initSuccess = false;
     if (Settings.OcrDataPath != null) {
-      path = FileManager.slashify(Settings.OcrDataPath, true);
-      fpath = new File(path, "tessdata");
-      if (!fpath.exists()) {
-        FileManager.getNativeLoader("basic", null).doSomethingSpecial("exportTessdata", new String[]{});
-      }
-      if (!fpath.exists()) {
-        Debug.error("TextRecognizer not working: tessdata folder not found at %s", path);
-        Settings.OcrTextRead = false;
-        Settings.OcrTextSearch = false;
-        fpath = null;
-      }
+      fTessdataPath = new File(FileManager.slashify(Settings.OcrDataPath, false), "tessdata");
+      initSuccess = fTessdataPath.exists();
     }
-    if (fpath != null) {
+    if(!initSuccess) {
+      fTessdataPath = new File(runTime.fSikulixAppPath, "SikulixTesseract/tessdata");
+      if (!(initSuccess = fTessdataPath.exists())) {
+//        if (!(initSuccess = (null != runTime.extractResourcesToFolder("sikulixtessdata", fTessdataPath, null)))) {
+        if (!(initSuccess = (null != runTime.extractTessData(fTessdataPath)))) {
+          Debug.error("TextRecognizer: init: export tessdata not possible - run setup with option 3");
+        }
+      }
+      if (!new File(fTessdataPath, "eng.traineddata").exists()) {
+        initSuccess = false;
+      }
+		}
+    if (!initSuccess) {
+      Debug.error("TextRecognizer not working: tessdata stuff not available at:\n%s", fTessdataPath);
+      Settings.OcrTextRead = false;
+      Settings.OcrTextSearch = false;
+    } else {
+      Settings.OcrDataPath = fTessdataPath.getParent();
       Vision.initOCR(FileManager.slashify(Settings.OcrDataPath, true));
-      _init_succeeded = true;
-      Debug.log(3, "TextRecognizer: init OK: using as data folder: " + fpath.getAbsolutePath());
+      Debug.log(lvl, "TextRecognizer: init OK: using as data folder:\n%s", Settings.OcrDataPath);
     }
   }
 
@@ -63,11 +74,16 @@ public class TextRecognizer {
     if (_instance == null) {
       _instance = new TextRecognizer();
     }
-    if (!_init_succeeded) {
+    if (!initSuccess) {
       return null;
     }
     return _instance;
   }
+
+	public static void reset() {
+		_instance = null;
+		Vision.setSParameter("OCRLang", Settings.OcrLanguage);
+	}
 
   public enum ListTextMode {
     WORD, LINE, PARAGRAPH
@@ -98,7 +114,7 @@ public class TextRecognizer {
   }
 
   public String recognize(BufferedImage img) {
-    if (_init_succeeded) {
+    if (initSuccess) {
       Mat mat = Image.convertBufferedImageToMat(img);
       return Vision.recognize(mat).trim();
     } else {
@@ -112,7 +128,7 @@ public class TextRecognizer {
   }
 
   public String recognizeWord(BufferedImage img) {
-    if (_init_succeeded) {
+    if (initSuccess) {
       Mat mat = Image.convertBufferedImageToMat(img);
       return Vision.recognizeWord(mat).trim();
     } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan 2013
@@ -278,10 +278,9 @@ public class CloseableModernTabbedPaneUI extends BasicTabbedPaneUI {
 
 		@Override
 		public void mousePressed(MouseEvent e) {
-			if (!tabPane.isEnabled()) {
+			if (tabPane == null || !tabPane.isEnabled()) {
 				return;
 			}
-
 			tabPressed = tabForCoordinate(tabPane, e.getX(), e.getY());
 			if (tabPressed != -1) {
 				tabPane.repaint(getTabBounds(tabPane, tabPressed));

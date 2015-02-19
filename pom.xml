@@ -1,9 +1,8 @@
-<?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<!--
-	* Copyright 2010-2013, Sikuli.org
+	* Copyright 2010-2014, Sikuli.org, sikulix.com
 	* Released under the MIT License.
 	*
 	* RaiMan 2013
@@ -11,9 +10,14 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.sikuli</groupId>
-	<artifactId>SikuliX-Project</artifactId>
+	<groupId>com.sikulix</groupId>
+	<artifactId>SikuliX-2014</artifactId>
 	<version>1.1.0</version>
+
+	<!-- to globally change the pom version:
+	mvn versions:set -DnewVersion=1.1.0
+	reminder: property sikuli.usedversion
+	-->
 
 	<packaging>pom</packaging>
 
@@ -37,15 +41,31 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<exclude.nativelayer.mac>NativeSupportMac.java</exclude.nativelayer.mac>
-		<exclude.nativelayer.null>NativeSupportForNothing</exclude.nativelayer.null>
 		<sikuli.jartype>plain.xml</sikuli.jartype>
 		<sikuli.jarname>${project.version}</sikuli.jarname>
-    <sikuli.usedversion>1.1.0-Beta1</sikuli.usedversion>
+		<sikulixvmaj>1</sikulixvmaj>
+		<sikulixvmin>1</sikulixvmin>
+		<sikulixvsub>0</sikulixvsub>
+		<sikulixbeta>0</sikulixbeta>
+		<!--   this decides, where setup downloads from   -->
+		<!--		<sikulixdev>release</sikulixdev>-->
+		<sikulixdev>development</sikulixdev>
+		<!-- TODO: find better solution for beta / non-beta -->
+		<!--
+		<sikuli.usedversion>${sikulixvmaj}.${sikulixvmin}.${sikulixvsub}-Beta${sikulixbeta}</sikuli.usedversion>
+		-->
+		<sikuli.usedversion>${sikulixvmaj}.${sikulixvmin}.${sikulixvsub}</sikuli.usedversion>
+		<sikuli.minorversion>${sikulixvmaj}.${sikulixvmin}.${sikulixvsub}</sikuli.minorversion>
+		<sikulixjythonversion>2.7-b3</sikulixjythonversion>
+		<sikulixjrubyversion>1.7.18</sikulixjrubyversion>
+		<sikulixlocalrepo>${settings.localRepository}</sikulixlocalrepo>
+		<sikuli.helpers>Setup/src/main/resources/content</sikuli.helpers>
+		<timestamp>${maven.build.timestamp}</timestamp>
+		<maven.build.timestamp.format>yyyy-MM-dd_HH:mm</maven.build.timestamp.format>
 	</properties>
 
 	<repositories>
-		<repository> <!-- needed for jxgrabkey -->
+		<repository>  <!-- com.sikulix.sikulixapi: jxgrabkey -->
 			<id>uni-due.de</id>
 			<name>uni-due.de</name>
 			<url>http://mvn.is.inf.uni-due.de:8081/nexus/content/repositories/atunes-dependencies/</url>
@@ -59,15 +79,15 @@
 				<updatePolicy>never</updatePolicy>
 			</snapshots>
 		</repository>
-		<repository>
-			<releases />
+<!--		<repository>  Tesseract4SikuliX: java/dev/jai-imageio/jai-imageio-core-standalone/1.2
+			<releases/>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
 			<id>mygrid-repository</id>
 			<name>myGrid Repository</name>
 			<url>http://www.mygrid.org.uk/maven/repository</url>
-		</repository>
+		</repository>-->
 	</repositories>
 
 	<dependencies>
@@ -83,160 +103,33 @@
 					<version>1.0.13</version>
 				</dependency>
 		-->
+		<!--
+		Javassist (Java Programming Assistant) makes Java bytecode manipulation simple.
+		http://www.csg.ci.i.u-tokyo.ac.jp/~chiba/javassist/
+		-->
+<!--		<dependency>
+			<groupId>org.javassist</groupId>
+			<artifactId>javassist</artifactId>
+			<version>3.18.1-GA</version>
+		</dependency>-->
 		<dependency>
-			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>6.8.7</version>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.10</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
-	<profiles>
-		<profile>
-			<id>Windows</id>
-			<activation>
-				<os>
-					<family>windows</family>
-				</os>
-			</activation>
-			<properties>
-				<sikuli.uselibs>META-INF/libs/windows/**/*</sikuli.uselibs>
-				<exclude.nativelayer>${exclude.nativelayer.mac}</exclude.nativelayer>
-			</properties>
-		</profile>
-		<profile>
-			<id>Unix</id>
-			<activation>
-				<os>
-					<family>unix</family>
-				</os>
-			</activation>
-			<properties>
-				<sikuli.uselibs>META-INF/libs/linux/**/*</sikuli.uselibs>
-				<exclude.nativelayer>${exclude.nativelayer.mac}</exclude.nativelayer>
-			</properties>
-		</profile>
-		<profile>
-			<id>Mac</id>
-			<activation>
-				<os>
-					<family>mac</family>
-				</os>
-			</activation>
-			<properties>
-				<sikuli.uselibs>META-INF/libs/mac/**/*</sikuli.uselibs>
-				<exclude.nativelayer>${exclude.nativelayer.null}</exclude.nativelayer>
-			</properties>
-		</profile>
-		<profile>
-			<id>withLibs</id>
-			<activation>
-				<activeByDefault>no</activeByDefault>
-			</activation>
-			<properties>
-				<sikuli.jartype>complete.xml</sikuli.jartype>
-				<sikuli.jarname>sikulix</sikuli.jarname>
-			</properties>
-		</profile>
-		<profile>
-			<id>withAllLibs</id>
-			<activation>
-				<activeByDefault>no</activeByDefault>
-			</activation>
-			<properties>
-				<sikuli.jarname>sikulix</sikuli.jarname>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.sikuli</groupId>
-					<artifactId>SikuliX-Libs</artifactId>
-					<version>1.1.0</version>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>withOCR</id>
-			<activation>
-				<activeByDefault>no</activeByDefault>
-			</activation>
-			<properties>
-				<sikuli.jarname>sikulix</sikuli.jarname>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.sikuli</groupId>
-					<artifactId>SikuliX-Tesseract</artifactId>
-					<version>1.1.0</version>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>withDocs</id>
-			<activation>
-				<activeByDefault>no</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>2.9.1</version>
-						<executions>
-							<execution>
-								<id>attach-javadocs</id>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>withSource</id>
-			<activation>
-				<activeByDefault>no</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-source-plugin</artifactId>
-						<version>2.2.1</version>
-						<executions>
-							<execution>
-								<id>attach-sources</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>jar-no-fork</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
-
 	<modules>
-		<module>Jygments4SikuliX</module>
-		<module>OpenCV4SikuliX</module>
-		<module>Tesseract4SikuliX</module>
-		<module>Libs</module>
-		<module>Natives</module>
-		<module>Basics</module>
-		<module>Setup</module>
-		<module>Jython</module>
-		<module>JythonFat</module>
-		<module>JRuby</module>
-		<module>JRubyFat</module>
+		<module>Libslux</module>
+		<module>Libsmac</module>
+		<module>Libswin</module>
 		<module>API</module>
-		<module>APIFat</module>
+		<module>APIPlus</module>
+		<module>Jygments4SikuliX</module>
 		<module>IDE</module>
-		<module>IDEFat</module>
-		<module>MacApp</module>
-		<module>Tesseract</module>
-		<module>Remote</module>
-		<module>Guide</module>
+		<module>IDEPlus</module>
+		<module>Setup</module>
 	</modules>
 
 	<build>
@@ -247,33 +140,10 @@
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
+<!--					might be needed for compiling with Java 8 -->
+<!--					<compilerArgument>-XDignore.symbol.file=true</compilerArgument>-->
 				</configuration>
 			</plugin>
 		</plugins>
 	</build>
-
-	<distributionManagement>
-		<!-- for now use this repositories below.
-		 Must be a git repository, that you have access to!
-		-->
-		<repository>
-			<id>sikulix.releases</id>
-			<!--      <url>https://github.com/RaiMan/SikuliX-Maven-Repo/raw/master/releases</url>-->
-			<url>file:/Users/rhocke/SikuliX/SikuliX-Maven-Repo/raw/master/releases</url>
-		</repository>
-		<snapshotRepository>
-			<id>sikulix.shapshots</id>
-			<!--      <url>https://github.com/RaiMan/SikuliX-Maven-Repo/raw/master/snapshots</url>-->
-			<url>file:/Users/rhocke/SikuliX/SikuliX-Maven-Repo/raw/master/snapshots</url>
-		</snapshotRepository>
-
-		<!-- after getting access to https://oss.sonatype.org/ as described in
-		https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide
-		use this: -->
-		<!--
-		<repository>
-				<id>sonatype.releases</id>
-				<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository> -->
-	</distributionManagement>
 </project>

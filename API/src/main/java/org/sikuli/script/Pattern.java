@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -17,11 +17,14 @@ import java.net.URL;
  * - image as in-memory image
  */
 public class Pattern {
+  
+  static RunTime runTime = RunTime.get();
 
   private Image image = null;
   private float similarity = (float) Settings.MinSimilarity;
   private Location offset = new Location(0, 0);
   private int waitAfter = 0;
+	private boolean imagePattern = false;
 
   /**
    * creates empty Pattern object at least setFilename() or setBImage() must be used before the
@@ -33,28 +36,39 @@ public class Pattern {
   /**
    * create a new Pattern from another (attribs are copied)
    *
-   * @param p
+   * @param p other Pattern
    */
   public Pattern(Pattern p) {
     image = p.getImage();
     similarity = p.similarity;
     offset.x = p.offset.x;
     offset.y = p.offset.y;
+		imagePattern = image.isPattern();
   }
 
   /**
    * create a Pattern with given image<br>
    *
-   * @param img
+   * @param img Image
    */
   public Pattern(Image img) {
-    image = img;
+		image = img.create(img);
+    image.setIsPattern(false);
+		imagePattern = true;
   }
 
-  /**
+	/**
+	 * true if Pattern was created from Image
+	 * @return true/false
+	 */
+	public boolean isImagePattern() {
+		return imagePattern;
+	}
+
+	/**
    * create a Pattern based on an image file name<br>
    *
-   * @param imgpath
+   * @param imgpath image filename
    */
   public Pattern(String imgpath) {
     image = Image.create(imgpath);
@@ -63,6 +77,7 @@ public class Pattern {
   /**
    * Pattern from a Java resource (Object.class.getResource)
    *
+	 * @param url image file URL
    */
   public Pattern(URL url) {
     image = Image.create(url);
@@ -71,7 +86,7 @@ public class Pattern {
   /**
    * A Pattern from a BufferedImage
    *
-   * @param bimg
+   * @param bimg BufferedImage
    */
   public Pattern(BufferedImage bimg) {
     image = new Image(bimg);
@@ -80,7 +95,7 @@ public class Pattern {
   /**
    * A Pattern from a ScreenImage
    *
-   * @param simg
+   * @param simg ScreenImage
    */
   public Pattern(ScreenImage simg) {
     image = new Image(simg.getImage());
@@ -92,13 +107,13 @@ public class Pattern {
    * @return true if image is useable
    */
   public boolean isValid() {
-    return image.isValid();
+    return image.isValid() || imagePattern;
   }
 
   /**
    * set a new image for this pattern
    *
-   * @param fileName
+   * @param fileName image filename
    * @return the Pattern itself
    */
   public Pattern setFilename(String fileName) {
@@ -109,7 +124,7 @@ public class Pattern {
   /**
    * set a new image for this pattern
    *
-   * @param fileURL
+   * @param fileURL image file URL
    * @return the Pattern itself
    */
   public Pattern setFilename(URL fileURL) {
@@ -120,7 +135,7 @@ public class Pattern {
   /**
    * set a new image for this pattern
    *
-   * @param img
+   * @param img Image
    * @return the Pattern itself
    */
   public Pattern setFilename(Image img) {
@@ -151,7 +166,7 @@ public class Pattern {
   /**
    * sets the minimum Similarity to use with findX
    *
-   * @param sim
+   * @param sim value 0 to 1
    * @return the Pattern object itself
    */
   public Pattern similar(float sim) {
@@ -180,8 +195,8 @@ public class Pattern {
   /**
    * set the offset from the match's center to be used with mouse actions
    *
-   * @param dx
-   * @param dy
+   * @param dx x offset
+   * @param dy y offset
    * @return the Pattern object itself
    */
   public Pattern targetOffset(int dx, int dy) {
@@ -193,7 +208,7 @@ public class Pattern {
   /**
    * set the offset from the match's center to be used with mouse actions
    *
-   * @param loc
+   * @param loc Location
    * @return the Pattern object itself
    */
   public Pattern targetOffset(Location loc) {
@@ -222,7 +237,7 @@ public class Pattern {
   /**
    * ONLY FOR INTERNAL USE! Might vanish without notice!
    *
-   * @param bimg
+   * @param bimg BufferedImage
    * @return the Pattern object itself
    */
   public Pattern setBImage(BufferedImage bimg) {
@@ -233,7 +248,7 @@ public class Pattern {
   /**
    * sets the Pattern's image
    *
-   * @param img
+   * @param img Image
    * @return the Pattern object itself
    */
   public Pattern setImage(Image img) {
@@ -244,6 +259,7 @@ public class Pattern {
   /**
    * get the Pattern's image
    *
+	 * @return Image
    */
   public Image getImage() {
     return image;
@@ -252,14 +268,16 @@ public class Pattern {
   /**
    * set the seconds to wait, after this pattern is acted on
    *
-   * @param secs
+   * @param secs seconds
    */
   public void setTimeAfter(int secs) {
     waitAfter = secs;
   }
 
   /**
+	 * <br>TODO: Usage to be implemented!
    * get the seconds to wait, after this pattern is acted on
+	 * @return time in seconds
    */
   public int getTimeAfter() {
     return waitAfter;

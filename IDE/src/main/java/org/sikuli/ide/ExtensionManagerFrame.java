@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan 2013
@@ -28,12 +28,14 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import org.json.simple.JSONValue;
 import org.sikuli.basics.Debug;
+import org.sikuli.basics.Debug;
+import org.sikuli.basics.Settings;
 import org.sikuli.basics.Settings;
 
 public class ExtensionManagerFrame extends JFrame {
 
   final static String EXTENSION_LIST_URL =
-          Settings.SikuliRepo + "extensions.json";
+          SikuliIDE.runTime.SikuliRepo + "extensions.json";
   private static ExtensionManagerFrame _instance = null;
   private int selected_idx = 0;
   ArrayList<ExtensionItem> _extensions;
@@ -41,7 +43,9 @@ public class ExtensionManagerFrame extends JFrame {
 
   static public ExtensionManagerFrame getInstance() {
     if (_instance == null) {
-      _instance = new ExtensionManagerFrame();
+//TODO reactivate extension manager
+      _instance = null;
+//      _instance = new ExtensionManagerFrame();
     }
     return _instance;
   }
@@ -204,9 +208,9 @@ public class ExtensionManagerFrame extends JFrame {
     }
   }
 
-  public static void main(String[] args) throws IOException {
-
-    ExtensionManagerFrame f = ExtensionManagerFrame.getInstance();
-    f.setVisible(true);
-  }
+//  public static void main(String[] args) throws IOException {
+//
+//    ExtensionManagerFrame f = ExtensionManagerFrame.getInstance();
+//    f.setVisible(true);
+//  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -53,7 +53,7 @@ public class ScreenImage {
 	 * creates the PNG tempfile only when needed.
 	 *
 	 * @return absolute path to stored tempfile
-	 * @throws IOException
+	 * @throws IOException if not found
 	 * @deprecated use getFile() instead
 	 */
 	@Deprecated

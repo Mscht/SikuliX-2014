@@ -1,12 +1,14 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
  */
 package org.sikuli.script;
 
-import org.sikuli.basics.HotkeyManager;
+import org.sikuli.basics.Animator;
+import org.sikuli.basics.AnimatorOutQuarticEase;
+import org.sikuli.basics.AnimatorTimeBased;
 import org.sikuli.basics.Settings;
 import org.sikuli.basics.Debug;
 import java.awt.AWTException;
@@ -21,16 +23,16 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
 /**
- * INTERNAL USE
- * Implemenation of IRobot making a DeskTopRobot using java.awt.Robot
+ * INTERNAL USE Implementation of IRobot making a DesktopRobot using java.awt.Robot
  */
 public class RobotDesktop extends Robot implements IRobot {
 
   final static int MAX_DELAY = 60000;
   private static int heldButtons = 0;
   private static String heldKeys = "";
-  private static ArrayList<Integer> heldKeyCodes = new ArrayList<Integer>();
+  private static final ArrayList<Integer> heldKeyCodes = new ArrayList<Integer>();
   private Screen scr = null;
+  private static RunTime runTime = RunTime.get();
 
   @Override
   public boolean isRemote() {
@@ -43,54 +45,49 @@ public class RobotDesktop extends Robot implements IRobot {
   }
 
   public RobotDesktop(Screen screen) throws AWTException {
-    super(screen.getGraphicsDevice());
+    super(runTime.getGraphicsDevice(screen.getcurrentID()));
     scr = screen;
   }
 
   @Override
   public void smoothMove(Location dest) {
-    smoothMove(Region.atMouse(), dest, (long) (Settings.MoveMouseDelay * 1000L));
+    smoothMove(Mouse.at(), dest, (long) (Settings.MoveMouseDelay * 1000L));
   }
 
   @Override
   public void smoothMove(Location src, Location dest, long ms) {
     Debug.log(4, "RobotDesktop: smoothMove (%.1f): " + src.toString() + "---" + dest.toString(), Settings.MoveMouseDelay);
     if (ms == 0) {
-      Screen s = dest.getScreen();
-      Location p = new Location(dest.x - s.x, dest.y - s.y);
-      s.getRobot().mouseMove(p.x, p.y);
-      moveMouseAndCheckPos(p, s);
+      Screen.getMouseRobot().mouseMove(dest.x, dest.y);
+      checkMousePosition(dest);
       return;
     }
-
-    OverlayAnimator aniX = new TimeBasedAnimator(
-            new OutQuarticEase(src.x, dest.x, ms));
-    OverlayAnimator aniY = new TimeBasedAnimator(
-            new OutQuarticEase(src.y, dest.y, ms));
+    Animator aniX = new AnimatorTimeBased(
+            new AnimatorOutQuarticEase(src.x, dest.x, ms));
+    Animator aniY = new AnimatorTimeBased(
+            new AnimatorOutQuarticEase(src.y, dest.y, ms));
+    float x = 0, y = 0;
     while (aniX.running()) {
-      float x = aniX.step();
-      float y = aniY.step();
-      Screen s = (new Location(x, y)).getScreen();
-      Location p = new Location(x - s.x, y - s.y);
-      moveMouseAndCheckPos(p, s);
-      delay(50);
+      x = aniX.step();
+      y = aniY.step();
+      Screen.getMouseRobot().mouseMove((int) x, (int) y);
     }
+    checkMousePosition(new Location((int) x, (int) y));
   }
 
-  private void moveMouseAndCheckPos(Location p, Screen s) {
-    //TODO Why? need to correct double correction of gdLoc (top left of screen grafic area) when not (0,0)
-    //Check at initScreens
-    s.getRobot().mouseMove(p.x, p.y);
+  private void checkMousePosition(Location p) {
     PointerInfo mp = MouseInfo.getPointerInfo();
     Point pc;
     if (mp == null) {
-      p.translate(-s.x, -s.y);
-      s.getRobot().mouseMove(p.x, p.y);
+      Debug.error("RobotDesktop: checkMousePosition: MouseInfo.getPointerInfo invalid\nafter move to %s", p);
     } else {
       pc = mp.getLocation();
       if (pc.x != p.x || pc.y != p.y) {
-        p.translate(-s.x, -s.y);
-        s.getRobot().mouseMove(p.x, p.y);
+        Debug.error("RobotDesktop: checkMousePosition: should be %s\nbut after move is %s"
+								+ "\nPossible cause in case you did not touch the mouse while script was running:\n"
+                + " Mouse actions are blocked generally or by the frontmost application."
+								+ (Settings.isWindows() ? "\nYou might try to run the SikuliX stuff as admin." : ""),
+                p, new Location(pc));
       }
     }
   }
@@ -103,20 +100,24 @@ public class RobotDesktop extends Robot implements IRobot {
     } else {
       heldButtons = buttons;
     }
-    mousePress(heldButtons);
-    waitForIdle();
+    Screen.getMouseRobot().mousePress(heldButtons);
+//TODO check: does this produce Robot locked situations?
+//    Screen.getMouseRobot().waitForIdle();
   }
 
   @Override
   public int mouseUp(int buttons) {
     if (buttons == 0) {
-      mouseRelease(heldButtons);
+      Screen.getMouseRobot().mouseRelease(heldButtons);
       heldButtons = 0;
     } else {
-      mouseRelease(buttons);
+      Screen.getMouseRobot().mouseRelease(buttons);
       heldButtons &= ~buttons;
     }
-    waitForIdle();
+		try {
+			Screen.getMouseRobot().waitForIdle();
+		} catch (Exception e) {
+		}
     return heldButtons;
   }
 
@@ -199,12 +200,11 @@ public class RobotDesktop extends Robot implements IRobot {
     if (keys != null && !"".equals(keys)) {
       for (int i = 0; i < keys.length(); i++) {
         if (heldKeys.indexOf(keys.charAt(i)) == -1) {
-          Debug.log(5, "press: " + keys.charAt(i));
+          Debug.log(4, "press: " + keys.charAt(i));
           typeChar(keys.charAt(i), IRobot.KeyMode.PRESS_ONLY);
           heldKeys += keys.charAt(i);
         }
       }
-      waitForIdle();
     }
   }
 
@@ -214,7 +214,6 @@ public class RobotDesktop extends Robot implements IRobot {
       keyPress(code);
       heldKeyCodes.add(code);
     }
-    waitForIdle();
   }
 
   @Override
@@ -223,7 +222,7 @@ public class RobotDesktop extends Robot implements IRobot {
       for (int i = 0; i < keys.length(); i++) {
         int pos;
         if ((pos = heldKeys.indexOf(keys.charAt(i))) != -1) {
-          Debug.log(5, "release: " + keys.charAt(i));
+          Debug.log(4, "release: " + keys.charAt(i));
           typeChar(keys.charAt(i), IRobot.KeyMode.RELEASE_ONLY);
           heldKeys = heldKeys.substring(0, pos)
                   + heldKeys.substring(pos + 1);
@@ -271,7 +270,7 @@ public class RobotDesktop extends Robot implements IRobot {
 
   @Override
   public void typeChar(char character, KeyMode mode) {
-    Debug.log(3, "Robot: doType: %s ( %d )",
+    Debug.log(4, "Robot: doType: %s ( %d )",
             KeyEvent.getKeyText(Key.toJavaKeyCode(character)[0]).toString(),
             Key.toJavaKeyCode(character)[0]);
     doType(mode, Key.toJavaKeyCode(character));
@@ -280,7 +279,7 @@ public class RobotDesktop extends Robot implements IRobot {
 
   @Override
   public void typeKey(int key) {
-    Debug.log(3, "Robot: doType: %s ( %d )", KeyEvent.getKeyText(key), key);
+    Debug.log(4, "Robot: doType: %s ( %d )", KeyEvent.getKeyText(key), key);
     if (Settings.isMac()) {
       if (key == Key.toJavaKeyCodeFromText("#N.")) {
         doType(KeyMode.PRESS_ONLY, Key.toJavaKeyCodeFromText("#C."));
@@ -303,6 +302,7 @@ public class RobotDesktop extends Robot implements IRobot {
       }
     }
     doType(KeyMode.PRESS_RELEASE, key);
+    waitForIdle();
   }
 
   @Override
@@ -315,8 +315,5 @@ public class RobotDesktop extends Robot implements IRobot {
 
   @Override
   public void cleanup() {
-    HotkeyManager.getInstance().cleanUp();
-    keyUp();
-    mouseUp(0);
   }
 }

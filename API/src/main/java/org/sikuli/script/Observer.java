@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2014, Sikuli.org, SikuliX.com
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
  * modified RaiMan
@@ -25,11 +25,11 @@ import org.sikuli.natives.Vision;
  */
 public class Observer {
 
-  private static String me = "Observer";
+  private static String me = "Observer: ";
   private static int lvl = 3;
 
   private static void log(int level, String message, Object... args) {
-    Debug.logx(level, "", me + ": " + message, args);
+    Debug.logx(level, me + message, args);
   }
 
   protected enum State {
@@ -151,13 +151,22 @@ public class Observer {
 
   private void callEventObserver(String name, Match match, long time) {
     Object ptn = eventNames.get(name);
-    log(lvl, "%s: %s with: %s at: %s", eventTypes.get(name), name, ptn, match);
-    ObserveEvent observeEvent = new ObserveEvent(name, eventTypes.get(name), ptn, match, observedRegion, time);
+    ObserveEvent.Type obsType = eventTypes.get(name);
+    log(lvl, "%s: %s with: %s at: %s", obsType, name, ptn, match);
+    ObserveEvent observeEvent = new ObserveEvent(name, obsType, ptn, match, observedRegion, time);
     Object callBack = eventCallBacks.get(name);
     Observing.addEvent(observeEvent);
     if (callBack != null && callBack instanceof ObserverCallBack) {
-      log(lvl, "running call back");
-      ((ObserverCallBack) callBack).appeared(observeEvent);
+      log(lvl, "running call back: %s", obsType);
+      if (obsType == ObserveEvent.Type.APPEAR) {
+        ((ObserverCallBack) callBack).appeared(observeEvent);
+      } else if (obsType == ObserveEvent.Type.VANISH) {
+        ((ObserverCallBack) callBack).vanished(observeEvent);
+      } else if (obsType == ObserveEvent.Type.CHANGE) {
+        ((ObserverCallBack) callBack).changed(observeEvent);
+      } else if (obsType == ObserveEvent.Type.GENERIC) {
+        ((ObserverCallBack) callBack).happened(observeEvent);
+      }
     }    
   }
 
@@ -194,7 +203,7 @@ public class Observer {
         if (observedRegion.contains(r)) {
           lastSearchTime = (new Date()).getTime();
           Finder f = new Finder(new Screen().capture(r), r);
-          f.find(new Pattern(img.getImage()).similar(Settings.CheckLastSeenSimilar));
+          f.find(new Pattern(img).similar(Settings.CheckLastSeenSimilar));
           if (f.hasNext()) {
             log(lvl + 1, "checkLastSeen: still there");
             match = new Match(new Region(img.getLastSeen()), img.getLastSeenScore());

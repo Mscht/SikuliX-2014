@@ -4,3 +4,15 @@ nb*
 *.iml
 stuff/
 *.versionsBackup
+*.log
+*.o
+*.o.d
+*.a
+*.def
+opencvsrc/
+.settings/
+.project
+.classpath
+*$py.class
+.exe
+original/

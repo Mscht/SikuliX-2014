@@ -1,8 +1,8 @@
 /*
- * Copyright 2010-2013, Sikuli.org
+ * Copyright 2010-2014, Sikuli.org, sikulix.com
  * Released under the MIT License.
  *
- * modified RaiMan 2013
+ * modified RaiMan 2014
  */
 package org.sikuli.ide;
 
@@ -23,7 +23,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 	public static final int DEFAULT_NUM_MATCHES = 50;
 	static final float DEFAULT_SIMILARITY = 0.7f;
 	private String _imgFilename, _thumbFname, _imgFilenameSaved;
-  private Image _image = null;
+  private Image _image;
   private JLabel patternImageIcon = null;
 	private EditorPane _pane;
 	private float _similarity, _similaritySaved;
@@ -41,15 +41,23 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
   private EditorPatternLabel _lbl;
 
   protected EditorPatternButton(EditorPane pane) {
-		init(pane, null);
+    this._image = null;
+		init(pane, null, null);
 	}
 
 	public EditorPatternButton(EditorPane pane, String imgFilename) {
-		init(pane, imgFilename);
+    this._image = null;
+		init(pane, imgFilename, null);
+	}
+
+	private EditorPatternButton(EditorPane pane, Image img) {
+    this._image = null;
+		init(pane, null, img);
 	}
 
   protected EditorPatternButton(EditorPatternLabel lbl) {
     super();
+    this._image = null;
     _lbl = lbl;
     _imgFilename = _lbl.getFile();
 		_exact = false;
@@ -59,7 +67,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
     _pane = _lbl.getPane();
   }
 
-	private void init(EditorPane pane, String imgFilename) {
+	private void init(EditorPane pane, String imgFilename, Image img) {
     //TODO thumbMax = PreferencesUser.getInstance().getDefaultThumbHeight() == 0 ? false : true;
 		_pane = pane;
 		_exact = false;
@@ -67,6 +75,8 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 		_numMatches = DEFAULT_NUM_MATCHES;
 		if (imgFilename != null) {
 			setFilename(imgFilename);
+		} else if (img != null) {
+			setFilename(img);
 		}
     setMargin(new Insets(0, 0, 0, 0));
     setBorderPainted(true);
@@ -79,13 +89,17 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 		return createThumbnailImage(_imgFilename, maxHeight);
 	}
 
+  public static EditorPatternButton createFromFilename(EditorPane parentPane, String str, EditorPatternLabel lbl) {
+		return createFromString(parentPane, "\"" + str + "\"", lbl);
+	}
+
   public static EditorPatternButton createFromString(EditorPane parentPane, String str, EditorPatternLabel lbl) {
     if (!str.startsWith("Pattern")) {
-      if (str.charAt(0) == '\"' && str.charAt(str.length() - 1) == '\"') {
-        str = str.substring(1, str.length() - 1);
-        if (parentPane.getImageInBundle(FileManager.slashify(str, false)).isValid()) {
-          return new EditorPatternButton(parentPane, FileManager.slashify(str, false));
-        }
+			str = str.substring(1, str.length() - 1);
+      str = FileManager.slashify(str, false);
+			Image img = Image.createThumbNail(str);
+      if (img.isValid() && img.isBundled()) {
+        return new EditorPatternButton(parentPane, img);
       }
       return null;
     }
@@ -97,10 +111,10 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 				btn.setExact(true);
 				btn.setSimilarity(0.99f);
 			} else if (tok.startsWith("Pattern")) {
-				String filename = tok.substring(
-								tok.indexOf("\"") + 1, tok.lastIndexOf("\""));
-        Image img = parentPane.getImageInBundle(FileManager.slashify(filename, false));
-        if (img.isValid()) {
+				String filename = FileManager.slashify(tok.substring(
+								tok.indexOf("\"") + 1, tok.lastIndexOf("\"")), false);
+        Image img = Image.createThumbNail(filename);
+        if (img.isValid() && img.isBundled()) {
 					btn.setFilename(img);
         } else {
           return null;
@@ -134,7 +148,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		Debug.log(2, "open Pattern Settings");
+		Debug.log(3, "ThumbButtonLabel: open Pattern Settings");
 		if (pwin == null) {
 			_offsetSaved = new Location(_offset);
 			_similaritySaved = _similarity;
@@ -200,8 +214,8 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 		File img = new File(_imgFilename);
 		String oldBundle = img.getParent();
 		String newBundle = _pane.getSrcBundle();
-		Debug.log(2, "ImageButton.getFilename: old: " + oldBundle + "\nnew: " + newBundle);
-		if (oldBundle == newBundle) {
+		Debug.log(4, "ImageButton.getFilename: old: " + oldBundle + "\nnew: " + newBundle);
+		if (FileManager.pathEquals(newBundle, oldBundle)) {
 			return _imgFilename;
 		}
 		setFilename(new File(newBundle, img.getName()).getAbsolutePath());
@@ -214,12 +228,12 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
     setIcon(new ImageIcon(createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight())));
     setButtonText();
   }
-  
+
   private void setFilename(Image img) {
     _image = img;
     _imgFilename = _image.getFilename();
     setIcon(new ImageIcon(createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight())));
-    setButtonText();    
+    setButtonText();
   }
 
 	private String createThumbnail(String imgFname) {
@@ -237,7 +251,8 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
       if (_image != null) {
         img = _image.get();
       } else {
-        Debug.error("EditorPatternButton: createThumbnailImage: not using Image for: " + imgFname);
+        
+//TODO ????        Debug.error("EditorPatternButton: createThumbnailImage: not using Image for: " + imgFname);
         img = ImageIO.read(new File(imgFname));
       }
 			int w = img.getWidth(null), h = img.getHeight(null);
@@ -263,7 +278,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 
 	public boolean setParameters(boolean exact, float similarity, int numMatches) {
 		boolean dirty = false;
-		Debug.log(2, "setParameters: " + exact + "," + similarity + "," + numMatches);
+		Debug.log(3, "ThumbButtonLabel: setParameters: " + exact + "," + similarity + "," + numMatches);
 		dirty |= setExact(exact);
 		dirty |= setSimilarity(similarity);
     setButtonText();
@@ -305,7 +320,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
   }
 
 	public boolean setTargetOffset(Location offset) {
-		Debug.log(3, "setTargetOffset: " + offset.toStringShort());
+		Debug.log(3, "ThumbButtonLabel: setTargetOffset: " + offset.toStringShort());
 		if (!_offset.equals(offset)) {
 			_offset = offset;
       setButtonText();
@@ -405,7 +420,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 
 	@Override
 	public String toString() {
-    return _pane.getPatternString(_imgFilename, _similarity, _offset);
+    return _pane.getPatternString(_imgFilename, _similarity, _offset, _image);
 	}
 
   private void setButtonText() {
