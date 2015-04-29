@@ -1,3 +1,73 @@
+<h4>Build: 2015-04-23</h4>
+fixed: setup did not work anymore with already downloaded artefacts (offline setup)<br>
+added: runScript(): inline run of PowerShell snippets
+<h4>Build: 2015-04-20</h4>
+added: runScript("applescript tell ..."): run code snippets in AppleScript on Mac using osascript<br>
+fixed: possible problem with setup running with proxy<br>
+revised: running Python scripts from net and with RunServer<br>
+revised runsikulix.cmd: now first we check, whether java can be run from system path<br>
+fixed: each SikuliX session should have it's own temp folder (auto deleted at JVM shutdown).
+Still the IDE GUI can only run once, but as much as one likes in parallel from commandline.
+<h4>Build: 2015-04-17</h4>
+fixed: user args after -- not filled into sys.argv when running from commandline<br>
+fixed: runsikulix.cmd did not use Java 8, if available in standard places<br>
+fixed: tessdata not bundled when using setup with option 1 only<br>
+fixed: exists(Pattern(image)) hangs (internally looping endlessly), if image file is not available<br>
+added: experimental: RunServer: run scripts (or JavaScript snippets) from anywhere using a http RESTful protocol<br>
+fixed: save script problems causing exceptions should be handled internally (otherwise might block GUI)<br>
+added: experimental: visual annotation (former extension Guide) now a standard feature of SikuliX (contained in sikulixapi.jar)
+<h4>Build: 2015-04-03</h4>
+fixed: runScript(): possible NPE, when used in scripts run from commandline
+<h4>Build: 2015-04-01</h4>
+revised: jython script running with sikulixapi.jar::Runner: now returns the value from an exit(n)<br>
+fixed: Linux: possible NPE in build on the fly
+<h4>Build: 2015-03-31</h4>
+added: jython script running with sikulixapi.jar::Runner: usage: org.sikuli.script.Runner.run(scriptPath, args), 
+sikulixapi.jar and a jython.jar must be on classpath (auto taken from setup downloads if omitted).
+<h4>Build: 2015-03-27</h4>
+fixed: Mac: a problem that made it to not run any longer with Java 6<br>
+revised: MouseMovedCallback feature<br>
+added: set callback handler and request visiting the handler before processing a mouse action (on/off)<br>
+added: request termination with next mouse action throwing an AssertionError
+<h4>Build: 2015-03-24</h4>
+fixed: (I hope ;-) all regression bugs against 1.0.1 in multi monitor environments<br>
+revised: ALL in Jython scripts and Screen.all().getRegion() can now be used, to search on all monitors in the same op
+(ALL.click(someBotton) will find and click the button, no matter on which monitor it currently is)
+<h4>Build: 2015-03-24</h4>
+added: multi monitor: a visual can now be found on all screens with one op: Screen.all().getRegion().find(someImage)
+will return a match, that knows it's screen, hence match.getScreen() will return the screen it was found on.
+Take care: is a lengthy operation and costs some memory, so it should be used with care.
+If the match spans screens, the screen with the biggest part is the winner (should be avoided).
+<h4>Build: 2015-03-22</h4>
+the next days I will somehow reveal more information about the new or revised features<br>
+... but many features are already in the docs<br>
+<br>
+a toy: starting sikulixapi.jar with no parameters reveals a simple edit/save/run dialog for JavaScript trials<br>
+added: SikulixAppData/SikulixStore/SikulixDebug.txt if this file is present at startup, then from beginning
+we run with debug level 3 and all messages are written to this file (helpful for startup debugging)<br>
+added: SikulixAppData/SikulixStore/SikulixOptions.txt is a key/value store according
+to the rules of Java property files, that is loaded at startup. The options might overwrite settings
+and are available at runtime via getOption... calls (precedence: home folder, work dir, SikulixAppData)<br>
+added: SikuliX now has a central repository (SikulixAppData) for all related stuff
+in the user's home folder area according according to the standards of the system<br>
+added: running scripts can now be paused/continued and aborted by moving the mouse
+(detection with next mouse action)<br>
+added: one can now run scripts written in JavaScript (edit not yet supported in IDE)<br>
+revised: script running in general: -r can have multiple scripts that are run one after the other,<br>
+added: runScript() can be used to run scripts from inside other scripts or from Java
+including handling of the bundlePath<br>
+added: images and scripts can now be downloaded/run from HTTP accessible locations in the net<br>
+revised: Linux build on the fly for libVisionProxy should be available in API also,
+to support this with Maven usage of sikulixapi.jar <br>
+revised: TextRecognizer: made the tessdata handling more robust, findAll(text) now works<br>
+added: image files whose name start with an _ are protected against image cleaning on save in all cases<br>
+added: sikulixapi.jar can now be bundled with Launch4J to create .exe that only need a JRE, resources and images
+can be exported or used from the .exe content (bundled in the original jars)<br>
+revised: moved parts of the Sikuli/Jython import handler to the Java level<br>
+revised: completely reworked the startup for IDE and API usage, now concentrating all startup requirements in the one
+singleton class RunTime<br>
+revised: all Sikulix related stuff besides the jars (setup, IDE and API, can now be moved around freely)
+is now in a system specific Sikulix folder in the home folder<br>
 <h4>Build: 2015-01-14</h4>
 revised: observe: handlers (callback on observe event happened) now directly called from Java in Jython and Jruby
 <h4>Build: 2015-01-12</h4>

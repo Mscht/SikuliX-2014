@@ -8,6 +8,7 @@ package org.sikuli.basics;
 
 import com.melloware.jintellitype.JIntellitype;
 import java.util.*;
+import org.sikuli.basics.Debug;
 
 public class WindowsHotkeyManager extends HotkeyManager {
   private Map<Integer, HotkeyData> _idCallbackMap = new HashMap<Integer, HotkeyData>();

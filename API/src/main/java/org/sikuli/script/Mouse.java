@@ -100,6 +100,7 @@ public class Mouse {
     up();
     device.mouseMovedResponse = device.MouseMovedIgnore;
     device.mouseMovedCallback = null;
+		device.callback = null;
     device.lastPos = null;
   }
 
@@ -136,10 +137,10 @@ public class Mouse {
    *
    * @param callBack ObserverCallBack
    */
-  public static void setMouseMovedCallback(ObserverCallBack callBack) {
+  public static void setMouseMovedCallback(Object callBack) {
     if (callBack != null) {
       device.mouseMovedResponse = 3;
-      device.mouseMovedCallback = callBack;
+      device.mouseMovedCallback = new ObserverCallBack(callBack, ObserveEvent.Type.GENERIC);
     }
   }
 
@@ -231,16 +232,30 @@ public class Mouse {
   }
 
   protected static int click(Location loc, int buttons, int modifiers, boolean dblClick, Region region) {
+    Debug profiler = Debug.startTimer("Mouse.click");
+    boolean shouldMove = true;
     if (loc == null) {
-      return 0;
+      shouldMove = false;
+      loc = at();
     }
-    IRobot r = loc.getRobotForPoint("click");
+    IRobot r = null;
+//    r = Screen.getMouseRobot();
+    try {
+      r = new RobotDesktop();
+    } catch (Exception ex) {
+      log(-1, "click: no Robot available");
+    }
     if (r == null) {
+      profiler.end();
       return 0;
     }
     device.use(region);
+    profiler.lap("after use");
     Debug.action(getClickMsg(loc, buttons, modifiers, dblClick));
-    r.smoothMove(loc);
+    if (shouldMove) {
+      r.smoothMove(loc);
+      profiler.lap("after move");
+    }
     r.clickStarts();
     r.pressModifiers(modifiers);
     int pause = Settings.ClickDelay > 1 ? 1 : (int) (Settings.ClickDelay * 1000);
@@ -258,7 +273,9 @@ public class Mouse {
     r.releaseModifiers(modifiers);
     r.clickEnds();
     r.waitForIdle();
+    profiler.lap("before let");
     device.let(region);
+    profiler.end();
     return 1;
   }
 
@@ -307,7 +324,13 @@ public class Mouse {
       return 0;
     }
     if (loc != null) {
-      IRobot r = loc.getRobotForPoint("mouseMove");
+      IRobot r = null;
+//      r = Screen.getMouseRobot();
+      try {
+        r = new RobotDesktop();
+      } catch (Exception ex) {
+        log(-1, "click: no Robot available");
+      }
       if (r == null) {
         return 0;
       }

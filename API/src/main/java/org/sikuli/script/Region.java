@@ -6,6 +6,7 @@
  */
 package org.sikuli.script;
 
+import org.sikuli.util.ScreenHighlighter;
 import java.awt.Rectangle;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -23,7 +24,7 @@ import edu.unh.iol.dlc.VNCScreen;
  *
  */
 public class Region {
-  
+
   static RunTime runTime = RunTime.get();
 
   private static String me = "Region: ";
@@ -93,6 +94,8 @@ public class Region {
   private Iterator<Match> lastMatches = null;
   private long lastSearchTime;
   private long lastFindTime;
+  private boolean isScreenUnion = false;
+  private boolean isVirtual = false;
 
 	/**
 	 * in case of not found the total wait time
@@ -159,6 +162,10 @@ public class Region {
   public String toStringShort() {
     return String.format("R[%d,%d %dx%d]@S(%s)", x, y, w, h, (getScreen() == null ? "?" : getScreen().getID()));
   }
+
+	public String toJSON() {
+		return String.format("[\"R\", %d, %d, %d, %d]", x, y, w, h);
+	}
 
   //<editor-fold defaultstate="collapsed" desc="OFF: Specials for scripting environment">
   /*
@@ -280,8 +287,36 @@ public class Region {
     }
     return loc.setOtherScreen(scr);
   }
+  
+  public static Region virtual(Rectangle rect) {    
+    Region reg = new Region();
+    reg.x = rect.x;
+    reg.y = rect.y;
+    reg.w = rect.width;
+    reg.h = rect.height;
+    reg.setVirtual(true);
+    reg.scr = Screen.getPrimaryScreen();
+    return reg;
+  }
+  
+  /**
+   * INTERNAL USE - EXPERIMENTAL
+   * if true: this region is not bound to any screen 
+   * @return the current state
+   */
+  public boolean isVirtual() {
+    return isVirtual;
+  }
 
-	/**
+  /**
+   * INTERNAL USE - EXPERIMENTAL
+   * @param state if true: this region is not bound to any screen 
+   */
+  public void setVirtual(boolean state) {
+    isVirtual = state;
+  }
+
+  /**
 	 * INTERNAL USE:
 	 * checks wether this region belongs to a non-Desktop screen
 	 * @return true/false
@@ -403,6 +438,14 @@ public class Region {
    * internal use only, used for new Screen objects to get the Region behavior
    */
   protected Region() {
+    this.rows = 0;
+  }
+
+  /**
+   * internal use only, used for new Screen objects to get the Region behavior
+   */
+  protected Region(boolean isScreenUnion) {
+    this.isScreenUnion = isScreenUnion;
     this.rows = 0;
   }
 
@@ -764,10 +807,10 @@ public class Region {
 
   // to avoid NPE for Regions being outside any screen
   private IRobot getRobotForRegion() {
-    if (getScreen() == null) {
+    if (getScreen() == null || isScreenUnion) {
       return Screen.getPrimaryScreen().getRobot();
     }
-    return getScreen().getRobot();
+    return getScreen().getRobot(); 
   }
 
   /**
@@ -2130,7 +2173,7 @@ public class Region {
 		}
     while (true) {
       try {
-        log(2, "find: waiting 0 secs for %s to appear in %s", targetStr, this.toStringShort());
+        log(3, "find: waiting 0 secs for %s to appear in %s", targetStr, this.toStringShort());
         lastMatch = doFind(target, null);
       } catch (IOException ex) {
         if (ex instanceof IOException) {
@@ -2149,7 +2192,7 @@ public class Region {
 	      log(lvl, "find: %s has appeared \nat %s", targetStr, lastMatch);
         return lastMatch;
       }
-	    log(2, "find: %s has not appeared [%d msec]", targetStr, lastFindTime);
+	    log(3, "find: %s has not appeared [%d msec]", targetStr, lastFindTime);
       if (!handleFindFailed(target)) {
         return null;
       }
@@ -2206,6 +2249,10 @@ public class Region {
    * @throws FindFailed if the Find operation finally failed
    */
   public <PSI> Match wait(PSI target) throws FindFailed {
+    if (target instanceof Float || target instanceof Double) {
+      wait(0.0 + ((Double) target));
+      return null;
+    }
     return wait(target, autoWaitTimeout);
   }
 
@@ -2227,7 +2274,7 @@ public class Region {
 		}
     while (true) {
       try {
-        log(2, "find: waiting %.1f secs for %s to appear in %s", timeout, targetStr, this.toStringShort());
+        log(3, "find: waiting %.1f secs for %s to appear in %s", timeout, targetStr, this.toStringShort());
         rf = new RepeatableFind(target);
         rf.repeat(timeout);
         lastMatch = rf.getMatch();
@@ -2247,7 +2294,7 @@ public class Region {
         log(lvl, "find: %s has appeared \nat %s", targetStr, lastMatch);
         break;
       }
-	    log(2, "find: %s has not appeared [%d msec]", targetStr, lastFindTime);
+	    log(3, "find: %s has not appeared [%d msec]", targetStr, lastFindTime);
       if (!handleFindFailed(target)) {
         return null;
       }
@@ -2304,11 +2351,11 @@ public class Region {
 		}
     while (true) {
       try {
-        log(2, "exists: waiting %.1f secs for %s to appear in %s", timeout, targetStr, this.toStringShort());
+        log(3, "exists: waiting %.1f secs for %s to appear in %s", timeout, targetStr, this.toStringShort());
         RepeatableFind rf = new RepeatableFind(target);
         if (rf.repeat(timeout)) {
           lastMatch = rf.getMatch();
-          Image img = getImage(target);
+          Image img = rf._image;
           lastMatch.setImage(img);
           if (img != null) {
             img.setLastSeen(lastMatch.getRect(), lastMatch.getScore());
@@ -2328,7 +2375,7 @@ public class Region {
         }
       }
     }
-    log(2, "exists: %s has not appeared [%d msec]", targetStr, lastFindTime);
+    log(3, "exists: %s has not appeared [%d msec]", targetStr, lastFindTime);
     return null;
   }
 
@@ -2425,7 +2472,7 @@ public class Region {
     lastFindTime = (new Date()).getTime();
     ScreenImage simg;
     if (repeating != null && repeating._finder != null) {
-      simg = getScreen().capture(x, y, w, h);
+      simg = getScreen().capture(this);
       f = repeating._finder;
       f.setScreenImage(simg);
       f.setRepeating();
@@ -2447,7 +2494,7 @@ public class Region {
           } else if (img.isText()) {
             findingText = true;
           } else {
-            throw new IOException("Region: doFind: Image not loadable: " + (String) ptn);
+            throw new IOException("Region: doFind: Image not loadable: " + ptn.toString());
           }
         }
 				if (findingText) {
@@ -2467,7 +2514,7 @@ public class Region {
             f.find((Pattern) ptn);
           }
         } else {
-          throw new IOException("Region: doFind: Image not loadable: " + (String) ptn);
+          throw new IOException("Region: doFind: Image not loadable: " + ptn.toString());
         }
       } else if (ptn instanceof Image) {
         if (((Image) ptn).isValid()) {
@@ -2478,7 +2525,7 @@ public class Region {
             f.find(img);
           }
         } else {
-          throw new IOException("Region: doFind: Image not loadable: " + (String) ptn);
+          throw new IOException("Region: doFind: Image not loadable: " + ptn.toString());
         }
       } else {
         log(-1, "doFind: invalid parameter: %s", ptn);
@@ -2499,23 +2546,21 @@ public class Region {
   }
 
   private Finder checkLastSeenAndCreateFinder(Image img, double findTimeout, Pattern ptn) {
+    ScreenImage simg = getScreen().capture(this);
     if (!Settings.UseImageFinder && Settings.CheckLastSeen && null != img.getLastSeen()) {
       Region r = Region.create(img.getLastSeen());
+      float score = (float) (img.getLastSeenScore() - 0.01); 
       if (this.contains(r)) {
         Finder f = null;
         if (this.scr instanceof VNCScreen) {
           f = new Finder(new VNCScreen().capture(r), r);
         } else {
-          f = new Finder(new Screen().capture(r), r);
+          f = new Finder(simg.getSub(r.getRect()), r);
         }
         if (ptn == null) {
-          f.find(new Pattern(img).similar(Settings.CheckLastSeenSimilar));
+          f.find(new Pattern(img).similar(score));
         } else {
-          if (ptn.getSimilar() > Settings.CheckLastSeenSimilar) {
-            f.find(ptn);
-          } else {
-            f.find(new Pattern(ptn).similar(Settings.CheckLastSeenSimilar));
-          }
+          f.find(new Pattern(ptn).similar(score));
         }
         if (f.hasNext()) {
           log(lvl, "checkLastSeen: still there");
@@ -2529,9 +2574,17 @@ public class Region {
       f.setFindTimeout(findTimeout);
       return f;
     } else {
-      return new Finder(getScreen().capture(x, y, w, h), this);
+      return new Finder(simg, this);
     }
   }
+  
+  public void saveLastScreenImage() {
+    ScreenImage simg = getScreen().getLastScreenImageFromScreen();
+    if (simg != null) {
+      simg.saveLastScreenImage(runTime.fSikulixStore);
+    }
+  }
+
 
   /**
    * Match findAllNow( Pattern/String/Image ) finds all the given pattern on the screen and returns the best matches
@@ -2629,7 +2682,7 @@ public class Region {
           return false;
         }
         long after_find = (new Date()).getTime();
-        if (after_find - before_find < MaxTimePerScan) {
+        if (after_find - before_find < MaxTimePerScan) {          
           getRobotForRegion().delay((int) (MaxTimePerScan - (after_find - before_find)));
         } else {
           getRobotForRegion().delay(10);
@@ -2848,28 +2901,17 @@ public class Region {
     return onEvent(target, null, ObserveEvent.Type.APPEAR);
   }
 
-  /**
-   *INTERNAL USE ONLY: for use with scripting API bridges
-   * @param <PSI> Pattern, String or Image
-   * @param target Pattern, String or Image
-   * @param observer ObserverCallBack
-   * @return the event's name
-   */
-  public <PSI> String onAppearJ(PSI target, Object observer) {
-    return onEvent(target, observer, ObserveEvent.Type.APPEAR);
-  }
-
   private <PSIC> String onEvent(PSIC targetThreshhold, Object observer, ObserveEvent.Type obsType) {
-    if (observer.getClass().getName().contains("org.python") ||
-            observer.getClass().getName().contains("org.jruby") ) {
+    if (observer != null && (observer.getClass().getName().contains("org.python") ||
+            observer.getClass().getName().contains("org.jruby"))) {
       observer = new ObserverCallBack(observer, obsType);
     }
     String name = Observing.add(this, (ObserverCallBack) observer, obsType, targetThreshhold);
-    log(lvl, "%s: observer %s %s: %s with: %s", toStringShort(), obsType, 
+    log(lvl, "%s: observer %s %s: %s with: %s", toStringShort(), obsType,
             (observer == null ? "" : " with callback"), name, targetThreshhold);
     return name;
   }
-  
+
   /**
    * a subsequently started observer in this region should wait for the target to vanish
    * and notify the given observer about this event<br>
@@ -2897,17 +2939,6 @@ public class Region {
   }
 
   /**
-   *INTERNAL USE ONLY: for use with scripting API bridges
-   * @param <PSI> Pattern, String or Image
-   * @param target Pattern, String or Image
-   * @param observer ObserverCallBack
-   * @return the event's name
-   */
-  public <PSI> String onVanishJ(PSI target, Object observer) {
-    return onEvent(target, observer, ObserveEvent.Type.VANISH);
-  }
-
-  /**
    * a subsequently started observer in this region should wait for changes in the region
    * and notify the given observer about this event
    * for details about the observe event handler: {@link ObserverCallBack}
@@ -2917,7 +2948,7 @@ public class Region {
    * @return the event's name
    */
   public String onChange(int threshold, Object observer) {
-    return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels), 
+    return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels),
             observer, ObserveEvent.Type.CHANGE);
   }
 
@@ -2929,7 +2960,7 @@ public class Region {
    * @return the event's name
    */
   public String onChange(int threshold) {
-    return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels), 
+    return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels),
             null, ObserveEvent.Type.CHANGE);
   }
 
@@ -2957,16 +2988,41 @@ public class Region {
     return onEvent(Settings.ObserveMinChangedPixels, null, ObserveEvent.Type.CHANGE);
   }
 
-  /**
-   *INTERNAL USE ONLY: for use with scripting API bridges
-   * @param threshold min pixel size - 0 = ObserveMinChangedPixels
-   * @param observer ObserverCallBack
-   * @return the event's name
-   */
-  public String onChangeJ(int threshold, Object observer) {
-    return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels), 
-            observer, ObserveEvent.Type.CHANGE);
-  }
+//<editor-fold defaultstate="collapsed" desc="obsolete">
+//	/**
+//	 *INTERNAL USE ONLY: for use with scripting API bridges
+//	 * @param <PSI> Pattern, String or Image
+//	 * @param target Pattern, String or Image
+//	 * @param observer ObserverCallBack
+//	 * @return the event's name
+//	 */
+//	public <PSI> String onAppearJ(PSI target, Object observer) {
+//		return onEvent(target, observer, ObserveEvent.Type.APPEAR);
+//	}
+//
+//	/**
+//	 *INTERNAL USE ONLY: for use with scripting API bridges
+//	 * @param <PSI> Pattern, String or Image
+//	 * @param target Pattern, String or Image
+//	 * @param observer ObserverCallBack
+//	 * @return the event's name
+//	 */
+//	public <PSI> String onVanishJ(PSI target, Object observer) {
+//		return onEvent(target, observer, ObserveEvent.Type.VANISH);
+//	}
+//
+//	/**
+//	 *INTERNAL USE ONLY: for use with scripting API bridges
+//	 * @param threshold min pixel size - 0 = ObserveMinChangedPixels
+//	 * @param observer ObserverCallBack
+//	 * @return the event's name
+//	 */
+//	public String onChangeJ(int threshold, Object observer) {
+//		return onEvent( (threshold > 0 ? threshold : Settings.ObserveMinChangedPixels),
+//						observer, ObserveEvent.Type.CHANGE);
+//	}
+//
+//</editor-fold>
 
   public String onChangeDo(int threshold, Object observer) {
     String name = Observing.add(this, (ObserverCallBack) observer, ObserveEvent.Type.CHANGE, threshold);
@@ -3112,7 +3168,7 @@ public class Region {
   //</editor-fold>
 
   //<editor-fold defaultstate="collapsed" desc="Mouse actions - clicking">
-  private Location checkMatch() {
+  public Location checkMatch() {
     if (lastMatch != null) {
       return lastMatch.getTarget();
     }
@@ -3633,7 +3689,7 @@ public class Region {
               t = Integer.parseInt(token.substring(2, token.length() - 1));
             } catch (NumberFormatException ex) {
             }
-            if ((token.startsWith("#W") && t > 60) || pause > 20) {
+            if ((token.startsWith("#w") && t > 60)) {
               pause = 20 + (t > 1000 ? 1000 : t);
               log(lvl + 1, "write: type delay: " + t);
             } else {
@@ -3820,6 +3876,7 @@ public class Region {
     if (target != null && 0 == click(target, 0)) {
       return 0;
     }
+    Debug profiler = Debug.startTimer("Region.type");
     if (text != null && !"".equals(text)) {
       String showText = "";
       for (int i = 0; i < text.length(); i++) {
@@ -3841,9 +3898,11 @@ public class Region {
       }
       Debug.action("%s TYPE \"%s\"", modText, showText);
       log(lvl, "%s TYPE \"%s\"", modText, showText);
+      profiler.lap("before getting Robot");
       IRobot r = getRobotForRegion();
       int pause = 20 + (Settings.TypeDelay > 1 ? 1000 : (int) (Settings.TypeDelay * 1000));
       Settings.TypeDelay = 0.0;
+      profiler.lap("before typing");
       r.typeStarts();
       for (int i = 0; i < text.length(); i++) {
         r.pressModifiers(modifiers);
@@ -3852,7 +3911,9 @@ public class Region {
         r.delay(pause);
       }
       r.typeEnds();
+      profiler.lap("after typing, before waitForIdle");
       r.waitForIdle();
+      profiler.end();
       return 1;
     }
 
@@ -3894,7 +3955,9 @@ public class Region {
    * @throws FindFailed if not found
    */
   public <PFRML> int paste(PFRML target, String text) throws FindFailed {
-    click(target, 0);
+    if (target != null) {
+      click(target, 0);
+    }
     if (text != null) {
       App.setClipboard(text);
       int mod = Key.getHotkeyModifier();
@@ -3956,4 +4019,16 @@ public class Region {
     return null;
   }
   //</editor-fold>
+  
+  public String saveCapture() {
+    return getScreen().capture(this).save();
+  }
+
+  public String saveCapture(String path) {
+    return getScreen().capture(this).save(path);
+  }
+
+  public String saveCapture(String path, String name) {
+    return getScreen().capture(this).save(path, name);
+  }
 }

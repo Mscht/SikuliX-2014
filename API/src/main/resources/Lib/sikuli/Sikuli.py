@@ -61,6 +61,7 @@ Debug.log(4, "Jython: sikuli: Sikuli: import KeyBoard/Mouse")
 from org.sikuli.script import Key
 from org.sikuli.script import KeyModifier
 from org.sikuli.script.KeyModifier import KEY_CTRL, KEY_SHIFT, KEY_META, KEY_CMD, KEY_WIN, KEY_ALT
+from org.sikuli.script import Device
 from org.sikuli.script import Mouse
 from org.sikuli.script import Keys
 
@@ -87,9 +88,15 @@ except:
   SCRIPT_SUPPORT = False
 
 from org.sikuli.script import Runner
+from org.sikuli.util import JythonHelper
+
+RUNTIME = RunTime.get()
+
+def show():
+  RUNTIME.show()
 
 ##
-# a token to check the availability 
+# a token to check the availability
 #
 SIKULIX_IS_WORKING = sys.version.split("(")[0]
 
@@ -121,24 +128,7 @@ def ucode(s):
 #  2. bundle path
 #
 def load(jar):
-    def _load(abspath):
-        if os.path.exists(abspath):
-            if not abspath in sys.path:
-                sys.path.append(abspath)
-            return True
-        return False
-
-    if _load(jar):
-        return True
-    path = getBundlePath()
-    if path:
-        jarInBundle = os.path.join(path, jar)
-        if _load(jarInBundle):
-            return True
-    path = ExtensionManager.getInstance().getLoadPath(jar)
-    if path and _load(path):
-        return True
-    return False
+    return JythonHelper.get().load(jar)
 
 ## ----------------------------------------------------------------------
 # append the given path sys.path if not yet contained
@@ -177,12 +167,13 @@ def resetImagePath(path = None):
 # Sikuli IDE sets this to the path of the bundle of source code (.sikuli)
 # automatically. If you write Sikuli scripts using Sikuli IDE, you should
 # know what you are doing.
+# returns true if path is valid and exists, false otherwise (no changes)
 #
 def setBundlePath(path):
-    ImagePath.setBundlePath(path)
+    return ImagePath.setBundlePath(path)
 
 ##
-# return the current bundlepath (usually the folder .sikuli) 
+# return the current bundlepath (usually the folder .sikuli)
 # or None if no bundlepath is defined
 # no trailing path sep
 #
@@ -190,7 +181,7 @@ def getBundlePath():
     return ImagePath.getBundlePath()
 
 ##
-# return the current bundlepath (usually the folder .sikuli) 
+# return the current bundlepath (usually the folder .sikuli)
 # or None if no bundlepath is defined
 # with a trailing path separator (for string concatenation)
 #
@@ -228,7 +219,7 @@ def getParentFolder():
 def makePath(*paths):
   if len(paths) == 0: return None
   path = paths[0]
-  if len(paths) > 1: 
+  if len(paths) > 1:
     for p in paths[1:]:
       path = os.path.join(path, p)
   if path[-1] == Settings.getFilePathSeperator():
@@ -419,7 +410,7 @@ def sleep(sec):
 def reset():
   JScreen.resetMonitors();
   use();
-  ALL = JScreen.all()
+  ALL = SCREEN.all().getRegion()
 
 ##
 # shutdown and return given exit code
@@ -530,6 +521,6 @@ def _exposeAllMethods(anyObject, saved, theGlobals, exclude_list):
 
 ############### set SCREEN as primary screen at startup ################
 use()
-ALL = JScreen.all()
+ALL = SCREEN.all().getRegion()
 Debug.log(3, "Jython: sikuli: Sikuli: ending init")
 

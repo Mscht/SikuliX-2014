@@ -20,7 +20,7 @@ public abstract class HotkeyListener {
    *
    * @param e HotkeyEvent
    */
-  protected void invokeHotkeyPressed(final HotkeyEvent e) {
+  public void invokeHotkeyPressed(final HotkeyEvent e) {
     Thread hotkeyThread = new Thread() {
       @Override
       public void run() {

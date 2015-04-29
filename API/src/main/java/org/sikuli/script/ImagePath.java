@@ -70,11 +70,11 @@ public class ImagePath {
 			if (pathURL == null) {
 				return "-- empty --";
 			}
-			if (isFile())
-				try {
-					return pathURL.toURI().getPath();
-				} catch (URISyntaxException ex) {}
-			return pathURL.toExternalForm();
+      String uPath = pathURL.toExternalForm();
+			if (isFile() && uPath.startsWith("file:")) {
+        uPath = uPath.substring(5);
+      }
+			return uPath;
 		}
 
 		public boolean isFile() {
@@ -190,12 +190,14 @@ public class ImagePath {
    */
   public static void dump(int lvl) {
     log(lvl, "ImagePath has %d entries (valid %d)", imagePaths.size(), getCount());
+    String bundle = "(taken as bundle path)";
     for (PathEntry p : imagePaths) {
       if (p == null) {
-        log(lvl, "Path: NULL");
+        log(lvl, "Path: NULL %s", bundle);
       } else {
         log(lvl, "Path: given: %s\nis: %s", p.path, p.getPath());
       }
+      bundle = "";
     }
   }
 
@@ -354,6 +356,21 @@ public class ImagePath {
 		}
 		return true;
   }
+  
+  public static boolean removeHTTP(String pathHTTP) {
+		try {
+      String proto = "http://";
+      String protos = "https://";
+      if (pathHTTP.startsWith(proto) || pathHTTP.startsWith(protos)) {
+        proto = "";
+      }
+			pathHTTP = FileManager.slashify(pathHTTP, false);
+			return remove(new URL(proto + pathHTTP));
+    } catch (Exception ex) {
+      log (-1, "removeHTTP: not possible: %s\n%s", pathHTTP, ex);
+      return false;
+		}
+  }
 
   /**
    * create a new PathEntry from the given absolute path name and add it to the
@@ -372,8 +389,9 @@ public class ImagePath {
    */
   public static boolean add(String mainPath, String altPath) {
     PathEntry path = null;
-    if (mainPath.contains(":")) {
-      return addHTTP(mainPath.replaceFirst(":", "/"));
+    File fPath = new File(mainPath);
+    if (!fPath.isAbsolute() && mainPath.contains(":")) {
+      return addHTTP(mainPath);
     }
     path = makePathURL(mainPath, altPath);
     if (path != null) {
@@ -396,7 +414,7 @@ public class ImagePath {
     if (imagePaths.size() == 1 && pe == null) {
       return -1;
     }
-    if (pe.equals(path)) {
+    if (pe != null && pe.equals(path)) {
       return 0;
     }
     for (PathEntry p : imagePaths.subList(1, imagePaths.size())) {
@@ -423,6 +441,10 @@ public class ImagePath {
    * @return true on success, false otherwise
    */
   public static boolean remove(String path) {
+    File fPath = new File(path);
+    if (!fPath.isAbsolute() && path.contains(":")) {
+      return removeHTTP(path);
+    }
     return remove(makePathURL(FileManager.normalize(path), null).pathURL);
   }
 
@@ -535,14 +557,25 @@ public class ImagePath {
   }
 
   /**
-   *
+   * no trailing path separator
    * @return the current bundle path (might be the fallback working folder)
    */
   public static String getBundlePath() {
     if (bundlePath == null) {
       setBundlePath(null);
     }
-		return bundlePath.getPath();
+		return FileManager.slashify(bundlePath.getPath(), false);
+  }
+
+  /**
+   * no trailing path separator
+   * @return the current bundle path (might be the fallback working folder)
+   */
+  public static String getBundleFolder() {
+    if (bundlePath == null) {
+      setBundlePath(null);
+    }
+		return FileManager.slashify(bundlePath.getPath(), true);
   }
 
   private static PathEntry makePathURL(String fpMainPath, String fpAltPath) {
@@ -550,9 +583,13 @@ public class ImagePath {
 			return null;
 		}
 		URL pathURL = null;
-		if (new File(FileManager.normalizeAbsolute(fpMainPath, false)).exists()) {
-			pathURL = FileManager.makeURL(FileManager.normalizeAbsolute(fpMainPath, false));
+    File fPath = new File(FileManager.normalizeAbsolute(fpMainPath, false)); 
+		if (fPath.exists()) {
+			pathURL = FileManager.makeURL(fPath.getAbsolutePath());
 		} else {
+      if (fpMainPath.contains("\\")) {
+        return null;
+      }
 			Class cls = null;
 			String klassName;
 			String fpSubPath = "";

@@ -301,8 +301,8 @@ public class ScriptingSupport {
       Runner.EDEFAULT = scriptRunner.get(Runner.RDEFAULT).getFileEndings()[0];
       for (IScriptRunner r : scriptRunner.values()) {
         for (String e : r.getFileEndings()) {
-          if (!supportedRunner.containsKey(Runner.EndingTypes.get(e))) {
-            supportedRunner.put(Runner.EndingTypes.get(e), r);
+          if (!supportedRunner.containsKey(Runner.endingTypes.get(e))) {
+            supportedRunner.put(Runner.endingTypes.get(e), r);
           }
         }
       }
@@ -316,7 +316,7 @@ public class ScriptingSupport {
     IScriptRunner currentRunner = null;
     String ending = null;
     if (script != null) {
-      for (String suffix : Runner.EndingTypes.keySet()) {
+      for (String suffix : Runner.endingTypes.keySet()) {
         if (script.endsWith(suffix)) {
           ending = suffix;
           break;
@@ -329,7 +329,7 @@ public class ScriptingSupport {
       }
       ending = Runner.typeEndings.get(type);
       if (ending == null) {
-        if (Runner.EndingTypes.containsKey(type)) {
+        if (Runner.endingTypes.containsKey(type)) {
           ending = type;
         }
       }
@@ -397,9 +397,8 @@ public class ScriptingSupport {
       isRunningScript = false;
       return;
     }
-    
-    runScripts = Runner.evalArgs(args);
 
+    runScripts = Runner.evalArgs(args);
     isRunningScript = true;
 
     if (runTime.runningInteractive) {
@@ -420,6 +419,18 @@ public class ScriptingSupport {
       Sikulix.endNormal(exitCode);
     }
 
+		if (runScripts == null) {
+			runTime.terminate(1, "option -r without any script");
+		}
+
+    if (runScripts.length > 0) {
+			String scriptName = runScripts[0];
+			if (scriptName != null && !scriptName.isEmpty() && scriptName.startsWith("git*")) {
+				run(scriptName, runTime.getSikuliArgs());
+				return;
+			}
+		}
+
     if (runScripts != null && runScripts.length > 0) {
       int exitCode = 0;
       runAsTest = runTime.runningTests;
@@ -428,7 +439,7 @@ public class ScriptingSupport {
           log(lvl, "Exit code -1: Terminating multi-script-run");
           break;
         }
-        exitCode = new RunBox(givenScriptName, runTime.getSikuliArgs(), runAsTest).run();
+        exitCode = new RunBox(givenScriptName, runTime.getArgs(), runAsTest).run();
         lastReturnCode = exitCode;
       }
       System.exit(exitCode);
@@ -469,7 +480,7 @@ public class ScriptingSupport {
         } else if (entry.getName().endsWith(".$py.class")) {
           return false;
         } else {
-          for (String ending : Runner.EndingTypes.keySet()) {
+          for (String ending : Runner.endingTypes.keySet()) {
             if (entry.getName().endsWith("." + ending)) {
               return false;
             }
@@ -539,20 +550,25 @@ public class ScriptingSupport {
     }
 
     private int run() {
+      if (Runner.RASCRIPT.equals(givenScriptScriptType)) {
+        return Runner.runas(givenScriptScript);
+      } else if (Runner.RSSCRIPT.equals(givenScriptScriptType)) {
+        return Runner.runps(givenScriptScript);
+      }
       int exitCode = -1;
       IScriptRunner currentRunner = null;
-      if (uGivenScript != null) {
-        if (givenScriptExists) {
-          log(lvl, "givenScriptName:\n%s", uGivenScript);
-          String script = FileManager.downloadURLtoString(uGivenScriptFile);
-          currentRunner = getRunner(null, givenScriptScriptType);
-          if (currentRunner != null) {
-            ImagePath.add(uGivenScript);
-            exitCode = currentRunner.runScript(null, null, new String[] {script}, null);
-          }
+      if (givenScriptType == "NET" && givenScriptExists) {
+        log(lvl, "running script from net:\n%s", uGivenScript);
+        if (Runner.RJSCRIPT.equals(givenScriptScriptType)) {
+          exitCode = Runner.runjs(null, uGivenScript, givenScriptScript, args);
         } else {
-          log(lvl, "givenScriptName not available:\n%s", uGivenScript);
-          exitCode = -9999;
+					currentRunner = scriptRunner.get(givenScriptScriptType);
+          if (null == currentRunner) {
+            log(-1, "running from net not supported for %s\n%s", givenScriptScriptType, uGivenScript);
+          } else {
+            ImagePath.addHTTP(uGivenScript.toExternalForm());
+            exitCode = currentRunner.runScript(null, null, new String[] {givenScriptScript}, null);
+          }
         }
       } else {
         log(lvl, "givenScriptName:\n%s", givenScriptName);
@@ -570,7 +586,7 @@ public class ScriptingSupport {
         fScript = new File(FileManager.normalizeAbsolute(fScript.getPath(), true));
         log(lvl, "Trying to run script:\n%s", fScript);
         if (fScript.getName().endsWith(".js")) {
-          return Runner.runjs(fScript, givenScriptScript, args);
+          return Runner.runjs(fScript, null, givenScriptScript, args);
         }
         currentRunner = getRunner(fScript.getName(), null);
         if (currentRunner != null) {

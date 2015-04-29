@@ -26,7 +26,7 @@
 	<licenses>
 		<license>
 			<name>MIT License</name>
-			<url>http://www.sikuli.org/LICENSE.txt</url>
+			<url>http://www.sikulix.com/disclaimer.html</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
@@ -56,8 +56,8 @@
 		-->
 		<sikuli.usedversion>${sikulixvmaj}.${sikulixvmin}.${sikulixvsub}</sikuli.usedversion>
 		<sikuli.minorversion>${sikulixvmaj}.${sikulixvmin}.${sikulixvsub}</sikuli.minorversion>
-		<sikulixjythonversion>2.7-b3</sikulixjythonversion>
-		<sikulixjrubyversion>1.7.18</sikulixjrubyversion>
+		<sikulixjythonversion>2.7-rc3</sikulixjythonversion>
+		<sikulixjrubyversion>1.7.19</sikulixjrubyversion>
 		<sikulixlocalrepo>${settings.localRepository}</sikulixlocalrepo>
 		<sikuli.helpers>Setup/src/main/resources/content</sikuli.helpers>
 		<timestamp>${maven.build.timestamp}</timestamp>
@@ -125,10 +125,10 @@
 		<module>Libsmac</module>
 		<module>Libswin</module>
 		<module>API</module>
-		<module>APIPlus</module>
+		<module>SetupAPI</module>
 		<module>Jygments4SikuliX</module>
 		<module>IDE</module>
-		<module>IDEPlus</module>
+		<module>SetupIDE</module>
 		<module>Setup</module>
 	</modules>
 

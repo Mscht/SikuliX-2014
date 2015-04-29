@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,6 +45,7 @@ import java.util.zip.ZipOutputStream;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import org.sikuli.script.Image;
+import org.sikuli.script.ImagePath;
 import org.sikuli.script.Sikulix;
 
 /**
@@ -62,13 +64,13 @@ public class FileManager {
   private static SplashFrame _progress = null;
   private static final String EXECUTABLE = "#executable";
 
-  public static int tryGetFileSize(URL url) {
+  public static int tryGetFileSize(URL aUrl) {
     HttpURLConnection conn = null;
     try {
       if (getProxy() != null) {
-        conn = (HttpURLConnection) url.openConnection(getProxy());
+        conn = (HttpURLConnection) aUrl.openConnection(getProxy());
       } else {
-        conn = (HttpURLConnection) url.openConnection();
+        conn = (HttpURLConnection) aUrl.openConnection();
       }
       conn.setConnectTimeout(30000);
       conn.setReadTimeout(30000);
@@ -76,12 +78,53 @@ public class FileManager {
       conn.getInputStream();
       return conn.getContentLength();
     } catch (Exception ex) {
-//      log0(-1, "Download: getFileSize: not accessible:\n" + ex.getMessage());
-      return -1;
+      return 0;
     } finally {
-      conn.disconnect();
+      if (conn != null) {
+        conn.disconnect();
+      }
     }
   }
+
+	public static int isUrlUseabel(String sURL) {
+		try {
+			return isUrlUseabel(new URL(sURL));
+		} catch (Exception ex) {
+			return -1;
+		}
+	}
+	
+	public static int isUrlUseabel(URL aURL) {
+    HttpURLConnection conn = null;
+		try {
+//			HttpURLConnection.setFollowRedirects(false);
+	    if (getProxy() != null) {
+    		conn = (HttpURLConnection) aURL.openConnection(getProxy());
+      } else {
+    		conn = (HttpURLConnection) aURL.openConnection();
+      }
+//			con.setInstanceFollowRedirects(false);
+			conn.setRequestMethod("HEAD");
+			int retval = conn.getResponseCode();
+//				HttpURLConnection.HTTP_BAD_METHOD 405
+//				HttpURLConnection.HTTP_NOT_FOUND 404
+			if (retval == HttpURLConnection.HTTP_OK) {
+				return 1;
+			} else if (retval == HttpURLConnection.HTTP_NOT_FOUND) {
+				return 0;
+			} else if (retval == HttpURLConnection.HTTP_FORBIDDEN) {
+				return 0;
+			} else {
+				return -1;
+			}
+		} catch (Exception ex) {
+			return -1;
+    } finally {
+      if (conn != null) {
+        conn.disconnect();
+      }
+    }
+	}
 
   public static Proxy getProxy() {
     Proxy proxy = Settings.proxy;
@@ -174,9 +217,6 @@ public class FileManager {
     }
     if (fullpath != null) {
       srcLength = tryGetFileSize(url);
-			if (srcLength < 0) {
-				srcLength = 0;
-			}
       srcLengthKB = (int) (srcLength / 1024);
       if (srcLength > 0) {
         log(lvl, "Downloading %s having %d KB", filename, srcLengthKB);
@@ -277,50 +317,16 @@ public class FileManager {
     try {
       url = new URL(src);
     } catch (MalformedURLException ex) {
-      log(-1, "download: bad URL: " + src);
+      log(-1, "download to string: bad URL:\n%s", src);
       return null;
     }
-    String[] path = url.getPath().split("/");
-    String filename = path[path.length - 1];
-    String target = "";
-    int srcLength = 1;
-    int srcLengthKB = 0;
-		int totalBytesRead = 0;
-		srcLength = tryGetFileSize(url);
-		if (srcLength > 0) {
-			srcLengthKB = (int) (srcLength / 1024);
-			log(lvl, "Downloading %s having %d KB", filename, srcLengthKB);
-			InputStream reader = null;
-			try {
-				if (getProxy() != null) {
-					reader = url.openConnection(getProxy()).getInputStream();
-				} else {
-					reader = url.openConnection().getInputStream();
-				}
-          byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
-          int bytesRead = 0;
-		      while ((bytesRead = reader.read(buffer)) > 0) {
-            totalBytesRead += bytesRead;
-						target += (new String(Arrays.copyOfRange(buffer, 0, bytesRead), Charset.forName("utf-8")));
-          }
-			} catch (Exception ex) {
-				log(-1, "problems while downloading\n" + ex.getMessage());
-				target= null;
-			} finally {
-				if (reader != null) {
-					try {
-						reader.close();
-					} catch (IOException ex) {
-					}
-				}
-			}
-    }
-    return target;
+    return downloadURLtoString(url);
   }
 
   public static String downloadURLtoString(URL uSrc) {
-    String target = "";
+    String content = null;
     InputStream reader = null;
+    log(lvl, "download to string from:\n%s,", uSrc);
     try {
       if (getProxy() != null) {
         reader = uSrc.openConnection(getProxy()).getInputStream();
@@ -330,11 +336,11 @@ public class FileManager {
       byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
       int bytesRead = 0;
       while ((bytesRead = reader.read(buffer)) > 0) {
-        target += (new String(Arrays.copyOfRange(buffer, 0, bytesRead), Charset.forName("utf-8")));
+        content += (new String(Arrays.copyOfRange(buffer, 0, bytesRead), Charset.forName("utf-8")));
       }
     } catch (Exception ex) {
       log(-1, "problems while downloading\n" + ex.getMessage());
-      target = null;
+      content = null;
     } finally {
       if (reader != null) {
         try {
@@ -343,7 +349,7 @@ public class FileManager {
         }
       }
     }
-    return target;
+    return content;
   }
 
   /**
@@ -364,7 +370,7 @@ public class FileManager {
   }
 
   public static File createTempDir(String path) {
-    File fTempDir = new File(RunTime.get().BaseTempPath, path);
+    File fTempDir = new File(RunTime.get().fpBaseTempPath, path);
     log(lvl, "createTempDir:\n%s", fTempDir);
     if (!fTempDir.exists()) {
       fTempDir.mkdirs();
@@ -379,13 +385,16 @@ public class FileManager {
   }
 
   public static File createTempDir() {
-    Random rand = new Random();
-    int randomInt = 1 + rand.nextInt();
-    File fTempDir = createTempDir("tmp-" + randomInt + ".sikuli");
+    File fTempDir = createTempDir("tmp-" + getRandomInt() + ".sikuli");
     if (null != fTempDir) {
       fTempDir.deleteOnExit();
     }
     return fTempDir;
+  }
+  
+  public static int getRandomInt() {
+    int rand = 1 + new Random().nextInt();
+    return (rand < 0 ? rand * -1 : rand);
   }
 
   public static void deleteTempDir(String path) {
@@ -474,7 +483,7 @@ public class FileManager {
   public static File createTempFile(String suffix, String path) {
     String temp1 = "sikuli-";
     String temp2 = "." + suffix;
-    File fpath = new File(RunTime.get().BaseTempPath);
+    File fpath = new File(RunTime.get().fpBaseTempPath);
     if (path != null) {
       fpath = new File(path);
     }
@@ -507,6 +516,25 @@ public class FileManager {
       e.printStackTrace();
     }
     return null;
+  }
+  
+  public static String saveTimedImage(BufferedImage img) {
+    return saveTimedImage(img, ImagePath.getBundlePath(), null);
+  }
+
+  public static String saveTimedImage(BufferedImage img, String path) {
+    return saveTimedImage(img, path, null);
+  }
+  
+  public static String saveTimedImage(BufferedImage img, String path, String name) {
+    RunTime.pause(0.01f);
+    File fImage = new File(path, String.format("%s-%d.png", name, new Date().getTime()));
+    try {
+      ImageIO.write(img, "png", fImage);
+    } catch (Exception ex) {
+      return "";
+    }
+    return fImage.getAbsolutePath();
   }
 
   public static void unzip(String zip, String path) throws IOException, FileNotFoundException {
@@ -903,7 +931,7 @@ public class FileManager {
       return makeURL(uRes, fName);
     } else if ("file".equals(uRes.getProtocol())) {
       aURL = makeURL(new File(slashify(uRes.getPath(), false), slashify(fName, false)).getPath(), uRes.getProtocol());
-    } else if ("http".equals(uRes.getProtocol())) {
+    } else if (uRes.getProtocol().startsWith("http")) {
       String sRes = uRes.toString();
 			if (!sRes.endsWith("/")) {
 				sRes += "/";
@@ -929,30 +957,6 @@ public class FileManager {
     }
     return aURL;
   }
-
-	public static int isUrlUseabel(URL aURL) {
-		try {
-//			HttpURLConnection.setFollowRedirects(false);
-			HttpURLConnection con = (HttpURLConnection) aURL.openConnection();
-//			con.setInstanceFollowRedirects(false);
-			con.setRequestMethod("HEAD");
-			int retval = con.getResponseCode();
-//				HttpURLConnection.HTTP_BAD_METHOD 405
-//				HttpURLConnection.HTTP_NOT_FOUND 404
-			if (retval == HttpURLConnection.HTTP_OK) {
-				return 1;
-			} else if (retval == HttpURLConnection.HTTP_NOT_FOUND) {
-				return 0;
-			} else if (retval == HttpURLConnection.HTTP_FORBIDDEN) {
-				return 0;
-			} else {
-				return -1;
-			}
-		} catch (Exception ex) {
-			return -1;
-		}
-
-	}
 
 	public static boolean checkJarContent(String jarPath, String jarContent) {
 		URL jpu = makeURL(jarPath, "jar");
@@ -1120,30 +1124,6 @@ public class FileManager {
 		}
 	}
 
-  /**
-   * INTERNAL USE
-   */
-  public static void cleanTemp() {
-    for (File f : new File(System.getProperty("java.io.tmpdir")).listFiles(new FilenameFilter() {
-      @Override
-      public boolean accept(File dir, String name) {
-        if (name.contains("sikulixlibs")) {
-          return false;
-        }
-        if (name.contains("BridJExtractedLibraries")) {
-          return true;
-        }
-        if (name.toLowerCase().contains("sikuli")) {
-          return true;
-        }
-        return false;
-      }
-    })) {
-      Debug.log(4, "cleanTemp: " + f.getName());
-      FileManager.deleteFileOrFolder(f.getAbsolutePath());
-    }
-  }
-
 	public static boolean isBundle(String dir) {
 		return dir.endsWith(".sikuli");
 	}
@@ -1204,18 +1184,48 @@ public class FileManager {
   }
 
   public static boolean writeStringToFile(String text, String path) {
+    return writeStringToFile(text, new File(path));
+  }
+
+  public static boolean writeStringToFile(String text, File fPath) {
     PrintStream out = null;
     try {
-      out = new PrintStream(new FileOutputStream(path));
+      out = new PrintStream(new FileOutputStream(fPath));
       out.print(text);
     } catch (Exception e) {
-      log(-1,"writeStringToFile: did not work: " + path + "\n" + e.getMessage());
+      log(-1,"writeStringToFile: did not work: " + fPath + "\n" + e.getMessage());
     }
     if (out != null) {
       out.close();
       return true;
     }
     return false;
+  }
+
+  public static String readFileToString(File fPath) {
+    try {
+      return doRreadFileToString(fPath);
+    } catch (Exception ex) {
+      return "";
+    }
+  }
+  
+  private static String doRreadFileToString(File fPath) throws IOException {
+    StringBuilder result = new StringBuilder();
+    BufferedReader reader = null;
+    try {
+      reader = new BufferedReader(new FileReader(fPath));
+      char[] buf = new char[1024];
+      int r = 0;
+      while ((r = reader.read(buf)) != -1) {
+        result.append(buf, 0, r);
+      }
+    } finally {
+      if (reader != null) {
+        reader.close();
+      }
+    }
+    return result.toString();
   }
 
   public static boolean packJar(String folderName, String jarName, String prefix) {
@@ -1419,7 +1429,7 @@ public class FileManager {
     bufferedWrite(in, jar);
     in.close();
   }
-  
+
   public static File[] getScriptFile(File fScriptFolder) {
     if (fScriptFolder == null) {
       return null;
@@ -1446,7 +1456,7 @@ public class FileManager {
       scriptName = fScriptFolder.getName().substring(0, pos);
       scriptType = fScriptFolder.getName().substring(pos + 1);
     }
-    
+
     boolean success = true;
     if (!fScriptFolder.exists()) {
       if ("sikuli-plain".equals(scriptType)) {

@@ -31,6 +31,10 @@ public class ScreenUnion extends Screen {
     w = _bounds.width;
     h = _bounds.height;
   }
+  
+  public Region getRegion() {
+    return Region.virtual(_bounds);
+  }
 
   @Override
   public int getIdFromPoint(int x, int y) {
@@ -60,13 +64,13 @@ public class ScreenUnion extends Screen {
   public ScreenImage capture(Rectangle rect) {
     Debug.log(3, "ScreenUnion: capture: (%d,%d) %dx%d", rect.x, rect.y, rect.width, rect.height);
     Screen s = Screen.getPrimaryScreen();
-    Location tl = new Location(rect.getLocation());
-    for (Screen sx : Screen.screens) {
-      if (sx.contains(tl)) {
-        s = sx;
-        break;
-      }
-    }
+//    Location tl = new Location(rect.getLocation());
+//    for (Screen sx : Screen.screens) {
+//      if (sx.contains(tl)) {
+//        s = sx;
+//        break;
+//      }
+//    }
     ScreenImage si = s.capture(rect);
     return si;
   }

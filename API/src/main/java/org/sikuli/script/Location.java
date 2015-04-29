@@ -18,7 +18,7 @@ import java.awt.Rectangle;
  *
  */
 public class Location implements Comparable<Location>{
-  
+
   static RunTime runTime = RunTime.get();
 
   public int x;
@@ -449,7 +449,7 @@ public class Location implements Comparable<Location>{
   @Override
   public String toString() {
     IScreen s = getScreen();
-    
+
     if(s instanceof Screen){
     	return "L(" + x + "," + y + ")" + "@" + ((Screen) s).toStringShort();
     }
@@ -467,6 +467,10 @@ public class Location implements Comparable<Location>{
     return "L(" + x + "," + y + ")";
   }
 
+	public String toJSON() {
+		return String.format("[\"L\", %d, %d]", x, y);
+	}
+
   // to avoid NPE for points outside any screen
   protected IRobot getRobotForPoint(String action) {
     if (getScreen() == null) {
@@ -476,6 +480,7 @@ public class Location implements Comparable<Location>{
     if (!getScreen().isOtherScreen()) {
       getScreen().showTarget(this);
     }
-    return getScreen().getRobot();
+    return Screen.getMouseRobot();
+//    return getScreen().getRobot();
   }
 }

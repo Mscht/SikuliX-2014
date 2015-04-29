@@ -6,13 +6,14 @@
  */
 package org.sikuli.script;
 
-import java.awt.Desktop;
+import org.sikuli.basics.HotkeyManager;
+import org.sikuli.util.Tests;
+import org.sikuli.util.ScreenHighlighter;
 import java.awt.Dimension;
 import java.io.File;
-import java.net.URI;
 import java.net.URL;
 import java.security.CodeSource;
-import java.util.Enumeration;
+import java.util.Date;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
@@ -23,21 +24,21 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.FileManager;
-import org.sikuli.basics.HotkeyManager;
 import org.sikuli.basics.PreferencesUser;
-import org.sikuli.basics.ResourceLoader;
 import org.sikuli.basics.Settings;
+import org.sikuli.util.JythonHelper;
+import org.sikuli.util.LinuxSupport;
 
 /**
  * global services for package API
  */
 public class Sikulix {
 
-  private static int lvl = 3;
   private static String imgLink = "http://www.sikulix.com/uploads/1/4/2/8/14281286";
   private static String imgHttp = "1389888228.jpg";
   private static String imgNet = imgLink + "/" + imgHttp;
 
+  private static int lvl = 3;
   private static void log(int level, String message, Object... args) {
     Debug.logx(level, "Sikulix: " + message, args);
   }
@@ -55,13 +56,29 @@ public class Sikulix {
   private static String jarPath;
   private static String jarParentPath;
   private static final String prefNonSikuli = "nonSikuli_";
+  private static RunTime rt = null;
+  public static int testNumber = -1;
+  private static boolean shouldRunServer = false;
 
   static {
+    String jarName = "";
+
+    CodeSource codeSrc =  Sikulix.class.getProtectionDomain().getCodeSource();
+    if (codeSrc != null && codeSrc.getLocation() != null) {
+      jarName = codeSrc.getLocation().getPath();
+    }
+
+    if (jarName.contains("sikulixsetupAPI")) {
+      JOptionPane.showMessageDialog(null, "Not useable!\nRun setup first!",
+              "sikulixsetupAPI", JOptionPane.ERROR_MESSAGE);
+      System.exit(0);
+    }
+
     rt = RunTime.get();
     if (Debug.getDebugLevel() == 0) {
       Debug.setDebugLevel(1);
     }
-    CodeSource codeSrc = Sikulix.class.getProtectionDomain().getCodeSource();
+
     if (codeSrc != null && codeSrc.getLocation() != null) {
       URL jarURL = codeSrc.getLocation();
       jarPath = FileManager.slashify(new File(jarURL.getPath()).getAbsolutePath(), false);
@@ -74,9 +91,6 @@ public class Sikulix {
     }
   }
 
-  private static RunTime rt = null;
-  public static int testNumber = -1;
-
   /**
    * checking parameter -d on commandline<br>
    * 0 - list all available tests<br>
@@ -87,104 +101,82 @@ public class Sikulix {
    */
   public static void main(String[] args) throws FindFailed {
 
-    System.out.println("********** Running Sikulix.main");
-
-    int dl = RunTime.checkArgs(args, RunTime.Type.API);
-    if (dl > -1 && dl < 999) {
-      testNumber = dl;
-      Debug.on(3);
+    if (args.length > 0 && args[0].toLowerCase().startsWith("-s")) {
+      shouldRunServer = true;
     } else {
-      testNumber = -1;
-    }
+      System.out.println("********** Running Sikulix.main");
 
-    rt = RunTime.get();
-    testNumber = rt.getOptionNumber("testing.test", testNumber);
-
-    if (dl == 999) {
-      int exitCode = Runner.runScripts(args);
-      cleanUp(exitCode);
-      System.exit(exitCode);
-    } else if (testNumber > -1) {
-      if (!rt.testing) {
-        rt.show();
-        rt.testing = true;
-      }
-      Tests.runTest(testNumber);
-      System.exit(1);
-    } else {
-      rt = RunTime.get();
-      //Debug.on(3);
-      Settings.InfoLogs = false;
-      Settings.ActionLogs = false;
-
-      Screen s = new Screen();
-      Debug.on(3);
-
-      ImagePath.add(Sikulix.class.getCanonicalName() + "/ImagesAPI.sikuli");
-      File fResults = new File(System.getProperty("user.home"), "SikulixScreenImages");
-      FileManager.resetFolder(fResults);
-      String fpResults = fResults.getPath();
-
-      if (Settings.isMac()) {
-        App.focus("Safari");
+      int dl = RunTime.checkArgs(args, RunTime.Type.API);
+      if (dl > -1 && dl < 999) {
+        testNumber = dl;
+        Debug.on(3);
       } else {
-        App.focus("Google Chrome");
+        testNumber = -1;
       }
-      String raimanlogo = "raimanlogo";
-      Match mFound = null;
-      try {
-        if (null == s.exists(raimanlogo, 0)) {
-          Desktop.getDesktop().browse(new URI("http://sikulix.com"));
-          s.wait(raimanlogo, 10);
-        }
-        s.hover();
 
-        Region winBrowser = App.focusedWindow();
+      testNumber = rt.getOptionNumber("testing.test", testNumber);
 
-        String image = "btnnightly";
-        mFound = winBrowser.exists(image);
-        if (null != mFound) {
-          p("mFound: %s", mFound);
-          p("mFound.Image: %s", mFound.getImage());
-          p("mFound.ImageFile: %s", mFound.getImageFilename());
-          winBrowser.highlight(-1);
-          winBrowser.click();
-          winBrowser.getLastScreenImageFile(fpResults, image + "screen.png");
-        } else {
-          terminate(1, "missing: %s", image);
-          System.exit(1);
+      if (dl == 999) {
+        int exitCode = Runner.runScripts(args);
+        cleanUp(exitCode);
+        System.exit(exitCode);
+      } else if (testNumber > -1) {
+        if (!rt.testing) {
+          rt.show();
+          rt.testing = true;
         }
-        image = "nightly";
-        mFound = winBrowser.exists(image, 10);
-        if (null != mFound) {
-          p("mFound: %s", mFound);
-          p("mFound.Image: %s", mFound.getImage());
-          p("mFound.ImageFile: %s", mFound.getImageFilename());
-          winBrowser.highlight(-1);
-          winBrowser.getLastScreenImageFile(fpResults, image + "screen.png");
-        } else {
-          terminate(1, "missing: %s", image);
-        }
-      } catch (Exception ex) {
-        terminate(1, "some problems");
-      }
-      s.write("#C.w");
-      s.wait(2f);
-      App.focus("NetBeans");
-      System.exit(1);
-
-      if (rt.runningWinApp) {
-        popup("Hello World\nNot much else to do ( yet ;-)", rt.fSxBaseJar.getName());
-        try {
-          Screen scr = new Screen();
-          scr.find(new Image(scr.userCapture("grab something to find"))).highlight(3);
-        } catch (Exception ex) {
-          popup("Uuups :-(\n" + ex.getMessage(), rt.fSxBaseJar.getName());
-        }
-        popup("Hello World\nNothing else to do ( yet ;-)", rt.fSxBaseJar.getName());
+        Tests.runTest(testNumber);
         System.exit(1);
       }
-      rt.terminate(1, "Sikulix::main: nothing to test");
+    }
+    rt = RunTime.get();
+    if (rt.fSxBaseJar.getName().contains("setup")) {
+      Sikulix.popError("Not useable!\nRun setup first!");
+      System.exit(0);
+    }
+    
+    if (shouldRunServer) {
+      RunServer.run(null);
+      System.exit(1);
+    }
+    
+    Debug.on(3);
+    Settings.InfoLogs = false;
+    Settings.ActionLogs = false;
+    
+    ImagePath.add("org.sikuli.script.Sikulix/ImagesAPI.sikuli");
+
+    if (rt.runningWinApp) {
+      popup("Hello World\nNot much else to do ( yet ;-)", rt.fSxBaseJar.getName());
+      try {
+        Screen scr = new Screen();
+        scr.find(new Image(scr.userCapture("grab something to find"))).highlight(3);
+      } catch (Exception ex) {
+        popup("Uuups :-(\n" + ex.getMessage(), rt.fSxBaseJar.getName());
+      }
+      popup("Hello World\nNothing else to do ( yet ;-)", rt.fSxBaseJar.getName());
+      System.exit(1);
+    }
+    String version = String.format("(%s-%s)", rt.getVersionShort(), rt.sxBuildStamp);
+    File lastSession = new File(rt.fSikulixStore, "LastAPIJavaScript.js");
+    String runSomeJS = "";
+    if (lastSession.exists()) {
+      runSomeJS = FileManager.readFileToString(lastSession);
+    }
+    runSomeJS = inputText("enter some JavaScript (know what you do - may silently die ;-)"
+            + "\nexample: run(\"git*\") will run the JavaScript showcase from GitHub"
+            + "\nWhat you enter now will be shown the next time.",
+            "API::JavaScriptRunner " + version, 10, 60, runSomeJS);
+    if (runSomeJS.isEmpty()) {
+      popup("Nothing to do!", version);
+    } else {
+      while (!runSomeJS.isEmpty()) {
+        FileManager.writeStringToFile(runSomeJS, lastSession);
+        Runner.runjs(null, null, runSomeJS, null);
+        runSomeJS = inputText("Edit the JavaScript and/or press OK to run it (again)\n"
+                + "Press Cancel to terminate",
+            "API::JavaScriptRunner " + version, 10, 60, runSomeJS);
+      }
     }
   }
 
@@ -410,7 +402,7 @@ public class Sikulix {
   }
 
   public static String run(String[] cmd) {
-    return ResourceLoader.get().runcmd(cmd);
+    return rt.runcmd(cmd);
   }
 
   public static void popError(String message) {
@@ -553,6 +545,10 @@ public class Sikulix {
    * @return The user's input including the line breaks.
    */
   public static String inputText(String msg, String title, int lines, int width) {
+    return inputText(msg, title, lines, width, "");
+  }
+
+  public static String inputText(String msg, String title, int lines, int width, String text) {
     width = Math.max(20, width);
     lines = Math.max(9, lines);
     if ("".equals(title)) {
@@ -563,6 +559,7 @@ public class Sikulix {
     int h = (int) (lines * ta.getFontMetrics(ta.getFont()).getHeight());
     ta.setPreferredSize(new Dimension(w, h));
     ta.setMaximumSize(new Dimension(w, 2 * h));
+    ta.setText(text);
     JScrollPane sp = new JScrollPane(ta);
     sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
     JTextArea tm = new JTextArea(msg);
@@ -584,19 +581,6 @@ public class Sikulix {
     }
   }
 
-  public static void pause(int time) {
-    try {
-      Thread.sleep(time * 1000);
-    } catch (InterruptedException ex) {
-    }
-  }
-
-  public static void pause(float time) {
-    try {
-      Thread.sleep((int) (time * 1000));
-    } catch (InterruptedException ex) {
-    }
-  }
 
   public static boolean importPrefs(String path) {
     return true;

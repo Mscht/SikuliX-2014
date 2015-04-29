@@ -10,6 +10,10 @@ import java.awt.event.KeyEvent;
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
+import org.sikuli.basics.Debug;
+import org.sikuli.basics.PreferencesUser;
+import org.sikuli.basics.Settings;
+import org.sikuli.script.Key;
 import org.sikuli.script.Key;
 
 /**
@@ -100,11 +104,11 @@ public abstract class HotkeyManager {
     return null;
   }
 
-  protected static String getKeyCodeText(int key) {
+  private static String getKeyCodeText(int key) {
     return KeyEvent.getKeyText(key).toUpperCase();
   }
 
-  protected static String getKeyModifierText(int modifiers) {
+  private static String getKeyModifierText(int modifiers) {
     String txtMod = KeyEvent.getKeyModifiersText(modifiers).toUpperCase();
     if (Settings.isMac()) {
       txtMod = txtMod.replace("META", "CMD");
@@ -137,7 +141,7 @@ public abstract class HotkeyManager {
       return false;
     }
   }
-  
+
   public String getHotKeyText(String hotkeyType) {
     PreferencesUser pref = PreferencesUser.getInstance();
     String key = "";

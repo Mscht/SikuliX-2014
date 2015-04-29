@@ -49,10 +49,15 @@ module Sikulix
 
   java_import org.sikuli.basics.Debug
 
+	$SCRIPT_SUPPORT = true
   begin
     java_import org.sikuli.scriptrunner.ScriptRunner
   rescue
+		$SCRIPT_SUPPORT = false
   end
+  java_import org.sikuli.script.Runner
+  java_import org.sikuli.script.RunTime
+	$RUNTIME = RunTime.get()
 
   #
   # This method generates a wrapper for Java Native exception processing
@@ -111,7 +116,7 @@ module Sikulix
 
   # Initializes connections to remote machines
   # *args - sequence of address[:port] strings. Default port - 5900
-  # example: 
+  # example:
   # initVNCPool("192.168.2.3:5901", "192.168.4.3")
   def initVNCPool(*args)
     if @connection_controller

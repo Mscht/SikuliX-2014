@@ -76,7 +76,6 @@
 					<descriptors>
 						<descriptor>../${sikuli.helpers}/plain.xml</descriptor>
 					</descriptors>
-					<finalName>sikulixsetup-${project.version}</finalName>
 				</configuration>
 				<executions>
 					<execution>
@@ -103,7 +102,7 @@
 					<executable>java</executable>
 					<arguments>
 						<argument>-jar</argument>
-						<argument>target/sikulixsetup-${project.version}-plain.jar</argument>
+						<argument>target/sikulixsetup-${project.version}-forsetup.jar</argument>
 					</arguments>
 				</configuration>
 			</plugin>

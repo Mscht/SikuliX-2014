@@ -6,6 +6,7 @@
  */
 package org.sikuli.script;
 
+import java.awt.Desktop;
 import java.awt.Rectangle;
 import org.sikuli.basics.Settings;
 import org.sikuli.basics.Debug;
@@ -19,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.HashMap;
@@ -108,6 +111,24 @@ public class App {
           }
         }      
       } else if (Type.BROWSER.equals(appType)) {
+        if (runTime.runningWindows) {
+          app = new App(appsWindows.get(appType));
+          if (app.window() != null) {
+            app.focus();
+            aRegion.wait(0.5);
+            win = app.window();
+            aRegion.click(win);
+//            aRegion.write("#C.a#B.");
+            return win;
+          } else {
+            app.open();
+            win = app.waitForWindow();
+            app.focus();
+            aRegion.wait(0.5);
+            aRegion.click(win);
+            return win;
+          }
+        }      
         return null;
       } else if (Type.VIEWER.equals(appType)) {
         return null;
@@ -127,6 +148,18 @@ public class App {
       seconds -= 0.5;
     }
     return win;
+  }
+  
+  public static boolean openLink(String url) {
+    if (!Desktop.isDesktopSupported()) {
+      return false;
+    }
+    try {
+      Desktop.getDesktop().browse(new URI(url));
+    } catch (Exception ex) {
+      return false;
+    }
+    return true;
   }
 
   private static Region asRegion(Rectangle r) {
@@ -245,7 +278,7 @@ public class App {
 	 * @return this or null on failure
 	 */
 	public App open() {
-    if (Settings.isWindows() || Settings.isLinux()) {
+    if (!runTime.runningMac) {
       int pid = _osUtil.openApp(_appName);
       _pid = pid;
       Debug.action("App.open " + this.toString());
@@ -255,6 +288,11 @@ public class App {
       }
     } else {
       Debug.action("App.open " + this.toString());
+      if (runTime.runningMacApp && runTime.osVersion.startsWith("10.10.")) {
+        if (Runner.runas(String.format("tell app \"%s\" to activate", _appName)) < 0) {
+          return null;
+        }
+      }
       if (_osUtil.openApp(_appName) < 0) {
         Debug.error("App.open failed: " + _appName + " not found");
         return null;

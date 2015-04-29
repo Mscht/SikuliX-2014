@@ -43,7 +43,8 @@ import java.util.zip.ZipInputStream;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.FileManager;
 import org.sikuli.basics.Settings;
-import org.sikuli.basics.SysJNA;
+import org.sikuli.util.JythonHelper;
+import org.sikuli.util.SysJNA;
 import org.sikuli.util.LinuxSupport;
 
 /**
@@ -53,9 +54,26 @@ import org.sikuli.util.LinuxSupport;
 public class RunTime {
   public static File scriptProject = null;
   public static URL uScriptProject = null;
+  public static boolean shouldRunServer = false;
+  
   public static void resetProject() {
     scriptProject = null;
-    uScriptProject = null;    
+    uScriptProject = null;
+  }
+ public static String appDataMsg = "";
+
+  public static void pause(int time) {
+    try {
+      Thread.sleep(time * 1000);
+    } catch (InterruptedException ex) {
+    }
+  }
+
+  public static void pause(float time) {
+    try {
+      Thread.sleep((int) (time * 1000));
+    } catch (InterruptedException ex) {
+    }
   }
 
 //<editor-fold defaultstate="collapsed" desc="logging">
@@ -65,10 +83,16 @@ public class RunTime {
   private static String preLogMessages = "";
 
   public final static String runCmdError = "*****error*****";
-  public final static String NL = System.lineSeparator();
+  public static String NL = "\n";
   public boolean runningInteractive = false;
   public boolean runningTests = false;
   public String interactiveRunner;
+  public File fLibsProvided;
+  public File fLibsLocal;
+  public boolean useLibsProvided = false;
+  private String lastResult = "";
+  public boolean shouldCleanDownloads = false;
+  public boolean isJythonReady = false;
 
   private void log(int level, String message, Object... args) {
     Debug.logx(level, String.format(me, runType) + message, args);
@@ -111,9 +135,10 @@ public class RunTime {
   public static synchronized RunTime get(Type typ, String[] clArgs) {
     if (runTime == null) {
       runTime = new RunTime();
+			int debugLevel = 0;
 
       if (null != clArgs) {
-        int debugLevel = checkArgs(clArgs, typ);
+        debugLevel = checkArgs(clArgs, typ);
         if (Type.IDE.equals(typ)) {
           if(debugLevel == -1) {
             Debug.on(3);
@@ -123,22 +148,45 @@ public class RunTime {
             System.setProperty("sikuli.console", "false");
           } else if (debugLevel == 999) {
             runTime.runningScripts = true;
+          } else if (debugLevel == -3) {
+            //if (Type.IDE.equals(typ) && "runserver".equals(opt)) {
+            shouldRunServer = true;
           }
         }
+      }
+      if (Type.API.equals(typ)) {
+        Debug.init();
       }
 
 //<editor-fold defaultstate="collapsed" desc="versions">
       String vJava = System.getProperty("java.runtime.version");
       String vVM = System.getProperty("java.vm.version");
       String vClass = System.getProperty("java.class.version");
-      String vSysArch = System.getProperty("os.arch");
-      runTime.javaVersion = Integer.parseInt(vJava.substring(2, 3));
-      if (vSysArch.contains("64")) {
-        runTime.javaArch = 64;
+      String vSysArch = System.getProperty("sikuli.arch");
+      if (null == vSysArch) {
+        vSysArch = System.getProperty("os.arch");
+      } else {
+        runTime.log(runTime.lvl, "SystemProperty given: sikuli.arch=%s", vSysArch);
       }
-
-      runTime.javaShow = String.format("java %d-%d version %s vm %s class %s arch %s",
-              runTime.javaVersion, runTime.javaArch, vJava, vVM, vClass, vSysArch);
+      if (vSysArch != null) {
+        if (vSysArch.contains("64")) {
+          runTime.javaArch = 64;
+        }
+      } else {
+        runTime.log(runTime.lvl, "Java arch (32 or 64 Bit) not detected nor given - using %d Bit", runTime.javaArch);
+      }
+      try {
+        runTime.javaVersion = Integer.parseInt(vJava.substring(2, 3));
+        runTime.javaShow = String.format("java %d-%d version %s vm %s class %s arch %s",
+                runTime.javaVersion, runTime.javaArch, vJava, vVM, vClass, vSysArch);
+      } catch (Exception ex) {
+        runTime.log(-1, "Java version not detected (using 7): %s", vJava);
+        runTime.javaVersion = 7;
+        runTime.javaShow = String.format("java ?7?-%d version %s vm %s class %s arch %s",
+                runTime.javaArch, vJava, vVM, vClass, vSysArch);
+        runTime.logp(runTime.javaShow);
+        runTime.dumpSysProps();
+      }
 
       if (Debug.getDebugLevel() > runTime.minLvl) {
         runTime.dumpSysProps();
@@ -151,6 +199,7 @@ public class RunTime {
         runTime.sysName = "windows";
         runTime.osName = "Windows";
         runTime.runningWindows = true;
+        runTime.NL = "\r\n";
       } else if (os.startsWith("mac")) {
         runTime.runningOn = theSystem.MAC;
         runTime.sysName = "mac";
@@ -161,13 +210,17 @@ public class RunTime {
         runTime.sysName = "linux";
         runTime.osName = "Linux";
         runTime.runningLinux = true;
+        String result = runTime.runcmd("lsb_release -i -r -s");
+        if (result.contains("*** error ***")) {
+          runTime.log(-1, "command returns error: lsb_release -i -r -s\n%s", result);
+        } else {
+          runTime.linuxDistro = result.replaceAll("\n", " ").trim();
+        }
       } else {
         runTime.terminate(-1, "running on not supported System: %s (%s)", os, runTime.osVersion);
       }
-//</editor-fold>
-
-      debugLevelSaved = Debug.getDebugLevel();
-      debugLogfileSaved = Debug.logfile;
+      runTime.fpJarLibs += runTime.sysName + "/libs" + runTime.javaArch;
+      runTime.fpSysLibs = runTime.fpJarLibs.substring(1);
 
       String aFolder = System.getProperty("user.home");
       if (aFolder == null || aFolder.isEmpty() || !(runTime.fUserDir = new File(aFolder)).exists()) {
@@ -179,7 +232,31 @@ public class RunTime {
         runTime.terminate(-1, "JavaSystemProperty::user.dir not valid");
       }
 
-      File fDebug = new File(runTime.fUserDir, "SikulixDebug.txt");
+			runTime.fSikulixAppPath = new File("SikulixAppDataNotAvailable");
+			if (runTime.runningWindows) {
+				appDataMsg = "init: Windows: %APPDATA% not valid (null or empty) or is not accessible:\n%s";
+				String tmpdir = System.getenv("APPDATA");
+				if (tmpdir != null && !tmpdir.isEmpty()) {
+					runTime.fAppPath = new File(tmpdir);
+					runTime.fSikulixAppPath = new File(runTime.fAppPath, "Sikulix");
+				}
+			} else if (runTime.runningMac) {
+				appDataMsg = "init: Mac: SikulxAppData does not exist or is not accessible:\n%s";
+				runTime.fAppPath = new File(runTime.fUserDir, "Library/Application Support");
+				runTime.fSikulixAppPath = new File(runTime.fAppPath, "Sikulix");
+			} else if (runTime.runningLinux) {
+				runTime.fAppPath = runTime.fUserDir;
+				runTime.fSikulixAppPath = new File(runTime.fAppPath, ".Sikulix");
+				appDataMsg = "init: Linux: SikulxAppData does not exist or is not accessible:\n%s";
+			}
+      runTime.fSikulixStore = new File(runTime.fSikulixAppPath, "SikulixStore");
+      runTime.fSikulixStore.mkdirs();
+//</editor-fold>
+
+      debugLevelSaved = Debug.getDebugLevel();
+      debugLogfileSaved = Debug.logfile;
+
+      File fDebug = new File(runTime.fSikulixStore, "SikulixDebug.txt");
       if (fDebug.exists()) {
         if (Debug.getDebugLevel() == 0) {
           Debug.setDebugLevel(3);
@@ -195,15 +272,15 @@ public class RunTime {
       runTime.fTestFile = new File(runTime.fTestFolder, "SikulixTest.txt");
 
       runTime.loadOptions(typ);
-      int dl = runTime.getOptionNumber("debug.level");
+      int dl = runTime.getOptionNumber("Debug.level");
       if (dl > 0 && Debug.getDebugLevel() < 2) {
         Debug.setDebugLevel(dl);
       }
-      if (Debug.getDebugLevel() > 1) {
+      if (Debug.getDebugLevel() == 2) {
         runTime.dumpOptions();
       }
 
-      if (Type.SETUP.equals(typ)) {
+      if (Type.SETUP.equals(typ) && debugLevel != -2) {
         Debug.setDebugLevel(3);
       }
 
@@ -289,11 +366,11 @@ public class RunTime {
   public String sxBuild = "";
   public String sxBuildStamp = "";
   public String jreVersion = java.lang.System.getProperty("java.runtime.version");
-  public Preferences optionsIDE = Preferences.userNodeForPackage(Sikulix.class);
+  public Preferences optionsIDE = null;
   public ClassLoader classLoader = RunTime.class.getClassLoader();
   public String baseJar = "";
   public String userName = "";
-  public String BaseTempPath = "";
+  public String fpBaseTempPath = "";
 
   private Class clsRef = RunTime.class;
   private Class clsRefBase = clsRef;
@@ -303,6 +380,7 @@ public class RunTime {
   public File fBaseTempPath = null;
   public File fLibsFolder = null;
   public String fpJarLibs = "/sikulixlibs/";
+  public String fpSysLibs = null;
   boolean areLibsExported = false;
   private Map<String, Boolean> libsLoaded = new HashMap<String, Boolean>();
   public File fUserDir = null;
@@ -311,6 +389,12 @@ public class RunTime {
   public File fTestFile = null;
   public File fAppPath = null;
   public File fSikulixAppPath = null;
+  public File fSikulixExtensions = null;
+  public File fSikulixLib = null;
+  public File fSikulixStore;
+  public File fSikulixDownloadsGeneric = null;
+  public File fSikulixDownloadsBuild = null;
+  public File fSikulixSetup;
 
   private File fOptions = null;
   private Properties options = null;
@@ -320,6 +404,8 @@ public class RunTime {
   public File fSxBase = null;
   public File fSxBaseJar = null;
   public File fSxProject = null;
+	public File fSxProjectTestScriptsJS = null;
+  public File fSxProjectTestScripts = null;
   public String fpContent = "sikulixcontent";
 
   public boolean runningJar = true;
@@ -342,6 +428,9 @@ public class RunTime {
   private String appType = null;
   public int debuglevelAPI = -1;
   private boolean runningScripts = false;
+  public String linuxDistro  = "???LINUX???";
+  public String linuxAppSupport = "";
+  public String linuxNeededLibs = "";
 
 //</editor-fold>
 
@@ -383,12 +472,13 @@ int nMonitors = 0;
     } else {
       terminate(1, "init: java.io.tmpdir not valid (null or empty");
     }
-    fBaseTempPath = new File(fTempPath, "Sikulix");
-    BaseTempPath = fBaseTempPath.getAbsolutePath();
+    fBaseTempPath = new File(fTempPath, 
+            String.format("Sikulix_%d", FileManager.getRandomInt()));
+    fpBaseTempPath = fBaseTempPath.getAbsolutePath();
+    fBaseTempPath.mkdirs();
 
     if (Type.IDE.equals(typ) && !runningScripts) {
-      fBaseTempPath.mkdirs();
-      isRunning = new File(BaseTempPath, isRunningFilename);
+      isRunning = new File(fBaseTempPath, isRunningFilename);
       try {
         isRunning.createNewFile();
         isRunningFile = new FileOutputStream(isRunning);
@@ -400,24 +490,57 @@ int nMonitors = 0;
         Sikulix.popError("Terminating on FatalError: cannot access IDE lock for/n" + isRunning);
         System.exit(1);
       }
-      Runtime.getRuntime().addShutdownHook(new Thread() {
-        @Override
-        public void run() {
-          log(lvl, "final cleanup");
-          if (isRunning != null) {
-            try {
-              isRunningFile.close();
-            } catch (IOException ex) {
-            }
-            isRunning.delete();
-          }
-          FileManager.cleanTemp();
-        }
-      });
     }
+    
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        log(lvl, "final cleanup");
+        if (isRunning != null) {
+          try {
+            isRunningFile.close();
+          } catch (IOException ex) {
+          }
+          isRunning.delete();
+        }
+        if (shouldCleanDownloads) {
+          FileManager.deleteFileOrFolder(fSikulixDownloadsBuild);
+        }
+        for (File f : fTempPath.listFiles(new FilenameFilter() {
+          @Override
+          public boolean accept(File dir, String name) {
+            File aFile = new File(dir, name);
+            boolean isObsolete = false;
+            long lastTime = aFile.lastModified();
+            if (lastTime == 0) {
+              return false;
+            }
+            if (lastTime < ((new Date().getTime()) - 7 * 24 * 60 * 60 * 1000)) {
+              isObsolete = true;
+            }
+            if (name.contains("BridJExtractedLibraries") && isObsolete) {
+              return true;
+            }
+            if (name.toLowerCase().contains("sikuli")) {
+              if (name.contains("Sikulix_")) {
+                if (isObsolete || aFile.equals(fBaseTempPath)) {
+                  return true;
+                }                
+              } else {
+                return true;
+              }
+            }
+            return false;
+          }
+        })) {
+          Debug.log(4, "cleanTemp: " + f.getName());
+          FileManager.deleteFileOrFolder(f.getAbsolutePath());
+        }   
+      }
+    });
 
     for (String aFile : fTempPath.list()) {
-      if (aFile.startsWith("Sikulix")) {
+      if (aFile.startsWith("Sikulix") && (new File(aFile).isFile())) {
         FileManager.deleteFileOrFolder(new File(fTempPath, aFile), new FileManager.FileFilter() {
           @Override
           public boolean accept(File entry) {
@@ -430,34 +553,25 @@ int nMonitors = 0;
       }
     }
 
-    String msg = "";
-    fSikulixAppPath = new File("NotAvailable");
-    if (runningWindows) {
-      msg = "init: Windows: %APPDATA% not valid (null or empty) or is not accessible:\n%s";
-      tmpdir = System.getenv("APPDATA");
-      if (tmpdir != null && !tmpdir.isEmpty()) {
-        fAppPath = new File(tmpdir);
-        fSikulixAppPath = new File(fAppPath, "Sikulix");
-      }
-    } else if (runningMac) {
-      msg = "init: Mac: SikulxAppData does not exist or is not accessible:\n%s";
-      fAppPath = new File(fUserDir, "Library/Application Support");
-      fSikulixAppPath = new File(fAppPath, "Sikulix");
-    } else if (runningLinux) {
-      fAppPath = fUserDir;
-      fSikulixAppPath = new File(fAppPath, ".Sikulix");
-      msg = "init: Linux: SikulxAppData does not exist or is not accessible:\n%s";
-    }
     try {
       if (!fSikulixAppPath.exists()) {
         fSikulixAppPath.mkdirs();
       }
       if (!fSikulixAppPath.exists()) {
-        terminate (1, msg, fSikulixAppPath);
+        terminate (1, appDataMsg, fSikulixAppPath);
       }
+      fSikulixExtensions = new File(fSikulixAppPath, "Extensions");
+      fSikulixLib = new File(fSikulixAppPath, "Lib");
+      fSikulixDownloadsGeneric = new File(fSikulixAppPath, "SikulixDownloads");
+      fSikulixSetup = new File(fSikulixAppPath, "SikulixSetup");
+      fLibsProvided = new File(fSikulixAppPath, fpSysLibs);
+      fLibsLocal = fLibsProvided.getParentFile().getParentFile();
+      fSikulixExtensions.mkdir();
+      fSikulixDownloadsGeneric.mkdir();
     } catch (Exception ex) {
-      terminate (1, msg + "\n" + ex.toString(), fSikulixAppPath);
+      terminate (1, appDataMsg + "\n" + ex.toString(), fSikulixAppPath);
     }
+
 //</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="monitors">
@@ -479,7 +593,7 @@ int nMonitors = 0;
           if (mainMonitor < 0) {
             mainMonitor = i;
             log(lvl, "ScreenDevice %d contains (0,0) --- will be used as primary", i);
-        } else {
+          } else {
             log(lvl, "ScreenDevice %d too contains (0,0)!", i);
           }
         }
@@ -505,13 +619,14 @@ int nMonitors = 0;
     CodeSource codeSrc = clsRef.getProtectionDomain().getCodeSource();
     String base = null;
     if (codeSrc != null && codeSrc.getLocation() != null) {
-      base = codeSrc.getLocation().getPath();
+      base = FileManager.slashify(codeSrc.getLocation().getPath(), false);
     }
     appType = "from a jar";
     if (base != null) {
       fSxBaseJar = new File(base);
       String jn = fSxBaseJar.getName();
       fSxBase = fSxBaseJar.getParentFile();
+      runTime.log(3, "fSxBase: %s", fSxBase);
       log(lvl, "runs as %s in: %s", jn, fSxBase.getAbsolutePath());
       if (jn.contains("classes")) {
         runningJar = false;
@@ -544,11 +659,38 @@ int nMonitors = 0;
     } else {
       terminate(1, "no valid Java context for SikuliX available (java.security.CodeSource.getLocation() is null)");
     }
+    if (runningInProject) {
+		fSxProjectTestScriptsJS = new File(fSxProject, "StuffContainer/testScripts/testJavaScript");
+		fSxProjectTestScripts = new File(fSxProject, "StuffContainer/testScripts");
+    }
 //</editor-fold>
 
+    if (runningWinApp || testingWinApp) {
+      runTime.fpJarLibs += "windows";
+      runTime.fpSysLibs = runTime.fpJarLibs.substring(1) + "/libs" + runTime.javaArch;
+    }
     if (!Type.SETUP.equals(typ)) {
       libsExport(typ);
-    }
+    } else {
+	    fSikulixDownloadsBuild = new File(fSikulixAppPath, "SikulixDownloads_" + sxBuildStamp);
+			if (!fSikulixDownloadsBuild.exists()) {
+				String[] fpList = fSikulixAppPath.list(new FilenameFilter() {
+					@Override
+					public boolean accept(File dir, String name) {
+						if (name.contains("SikulixDownloads_")) {
+							return true;
+						}
+						return false;
+					}
+				});
+				if (fpList.length > 0) {
+					log(lvl, "renaming versioned downloads folder in AppPath (%s)", fSikulixDownloadsBuild.getName());
+					for (String entry : fpList) {
+						new File(fSikulixAppPath, entry).renameTo(fSikulixDownloadsBuild);
+					}
+				}
+			}
+		}
 
     runType = typ;
     if (Debug.getDebugLevel() == minLvl) {
@@ -576,18 +718,22 @@ int nMonitors = 0;
 //</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="libs export">
-  public void makeLibsFolder() {
+  public void makeFolders() {
     fLibsFolder = new File(fSikulixAppPath, "SikulixLibs_" + sxBuildStamp);
     if (testing) {
-      logp("***** for testing: delete libsfolder");
+      logp("***** for testing: delete folders SikulixLibs/ and Lib/");
       FileManager.deleteFileOrFolder(fLibsFolder);
+      FileManager.deleteFileOrFolder(fSikulixLib);
     }
     if (!fLibsFolder.exists()) {
+      fSikulixLib.mkdir();
       fLibsFolder.mkdirs();
       if (!fLibsFolder.exists()) {
         terminate(1, "libs folder not available: " + fLibsFolder.toString());
       }
       log(lvl, "new libs folder at: %s", fLibsFolder);
+    } else {
+      log(lvl, "exists libs folder at: %s", fLibsFolder);
     }
     String[] fpList = fTempPath.list(new FilenameFilter() {
       @Override
@@ -598,8 +744,8 @@ int nMonitors = 0;
         return false;
       }
     });
-    if (fpList.length > 1) {
-      log(lvl, "deleting obsolete libs folders");
+    if (fpList.length > 0) {
+      log(lvl, "deleting obsolete libs folders in Temp");
       for (String entry : fpList) {
         if (entry.endsWith(sxBuildStamp)) {
           continue;
@@ -617,7 +763,7 @@ int nMonitors = 0;
       }
     });
     if (fpList.length > 1) {
-      log(lvl, "deleting obsolete libs folders");
+      log(lvl, "deleting obsolete libs folders in AppPath");
       for (String entry : fpList) {
         if (entry.endsWith(sxBuildStamp)) {
           continue;
@@ -627,14 +773,80 @@ int nMonitors = 0;
     }
   }
 
+  private boolean libsLoad(String libName) {
+    if (!areLibsExported) {
+      libsExport(runType);
+    }
+    if (!areLibsExported) {
+      terminate(1, "loadLib: deferred exporting of libs did not work");
+    }
+    if (runningWindows) {
+      libName += ".dll";
+    } else if (runningMac) {
+      libName = "lib" + libName + ".dylib";
+    } else if (runningLinux) {
+      libName = "lib" + libName + ".so";
+    }
+    File fLib = new File(fLibsFolder, libName);
+    Boolean vLib = libsLoaded.get(libName);
+    if (vLib == null || !fLib.exists()) {
+      terminate(1, String.format("lib: %s not available in %s", libName, fLibsFolder));
+    }
+    String msg = "loadLib: %s";
+    int level = lvl;
+    if (vLib) {
+      level++;
+      msg += " already loaded";
+    }
+    if (vLib) {
+      log(level, msg, libName);
+      return true;
+    }
+    boolean shouldTerminate = false;
+    Error loadError = null;
+    while (!shouldTerminate) {
+      shouldTerminate = true;
+      loadError = null;
+      try {
+        System.load(new File(fLibsFolder, libName).getAbsolutePath());
+      } catch (Error e) {
+        loadError = e;
+        if (runningLinux) {
+          log(-1, msg + " not usable: \n%s", libName, loadError);
+          shouldTerminate = !LinuxSupport.checkAllLibs();
+        }
+      }
+    }
+    if (loadError != null) {
+      log(-1, "Problematic lib: %s (...TEMP...)", fLib);
+      log(-1, "%s loaded, but it might be a problem with needed dependent libraries\nERROR: %s",
+              libName, loadError.getMessage().replace(fLib.getAbsolutePath(), "...TEMP..."));
+      terminate(1, "problem with native library: " + libName);
+    }
+    libsLoaded.put(libName, true);
+    log(level, msg, libName);
+    return true;
+  }
+
+  private boolean libsCheck(File flibsFolder) {
+    // 1.1-MadeForSikuliX64M.txt
+    String name = String.format("1.1-MadeForSikuliX%d%s.txt", javaArch, runningOn.toString().substring(0, 1));
+    if (!new File(flibsFolder, name).exists()) {
+      log(lvl, "libs folder empty or has wrong content");
+      return false;
+    }
+    return true;
+  }
+
   private void libsExport(Type typ) {
     boolean shouldExport = false;
-    makeLibsFolder();
+    makeFolders();
     URL uLibsFrom = null;
-    log(lvl, "exists libs folder at: %s", fLibsFolder);
-    if (!checkLibs(fLibsFolder)) {
+    if (!libsCheck(fLibsFolder)) {
       FileManager.deleteFileOrFolder(fLibsFolder);
+      FileManager.deleteFileOrFolder(fSikulixLib);
       fLibsFolder.mkdirs();
+      fSikulixLib.mkdir();
       shouldExport = true;
       if (!fLibsFolder.exists()) {
         terminate(1, "libs folder not available: " + fLibsFolder.toString());
@@ -644,9 +856,6 @@ int nMonitors = 0;
       String sysShort = "win";
       if (!runningWinApp && !testingWinApp) {
         sysShort = runningOn.toString().toLowerCase();
-        fpJarLibs += sysName + "/libs" + javaArch;
-      } else {
-        fpJarLibs += "windows";
       }
       String fpLibsFrom = "";
       if (runningJar) {
@@ -667,7 +876,7 @@ int nMonitors = 0;
           shouldAddLibsJar = true;
         }
       }
-      if (null != isOnClasspath("sikulix.jar") || null != isOnClasspath("sikulixapi.jar")) {
+      if (null != isJarOnClasspath("sikulix.jar") || null != isJarOnClasspath("sikulixapi.jar")) {
         shouldAddLibsJar = false;
         fpLibsFrom = "";
       }
@@ -703,9 +912,14 @@ int nMonitors = 0;
     for (String aFile : fLibsFolder.list()) {
       libsLoaded.put(aFile, false);
     }
+    if (useLibsProvided) {
+      log(lvl, "Linux: requested to use provided libs - copying");
+      LinuxSupport.copyProvidedLibs(fLibsFolder);
+    }
     if (runningWindows) {
-      if (!addToWindowsSystemPath(fLibsFolder)) {
-        terminate(1, "Problems setting up on Windows - see errors");
+      addToWindowsSystemPath(fLibsFolder);
+      if (!checkJavaUsrPath(fLibsFolder)) {
+        log(-1, "Problems setting up on Windows - see errors - might not work and crash later");
       }
       String lib = "jawt.dll";
       File fJawtDll = new File(fLibsFolder, lib);
@@ -715,8 +929,93 @@ int nMonitors = 0;
         terminate(1, "problem copying %s", fJawtDll);
       }
     }
-
+    if (shouldExport && !Type.IDE.equals(runType)) {
+      extractResourcesToFolder("Lib", fSikulixLib, null);
+    }
     areLibsExported = true;
+  }
+//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="native libs handling">
+  /**
+   * INTERNAL USE: load a native library from the libs folder
+   *
+   * @param libname name of library without prefix/suffix/ending
+   */
+  public static void loadLibrary(String libname) {
+    RunTime.get().libsLoad(libname);
+  }
+
+  /**
+   * INTERNAL USE: load a native library from the libs folder
+   *
+   * @param libname name of library without prefix/suffix/ending
+   */
+  public static void loadLibrary(String libname, boolean useLibsProvided) {
+    RunTime rt = RunTime.get();
+    rt.useLibsProvided = useLibsProvided;
+    rt.libsLoad(libname);
+  }
+
+  private void addToWindowsSystemPath(File fLibsFolder) {
+    String syspath = SysJNA.WinKernel32.getEnvironmentVariable("PATH");
+    if (syspath == null) {
+      terminate(1, "addToWindowsSystemPath: cannot access system path");
+    } else {
+      String libsPath = (fLibsFolder.getAbsolutePath()).replaceAll("/", "\\");
+      if (!syspath.toUpperCase().contains(libsPath.toUpperCase())) {
+        if (!SysJNA.WinKernel32.setEnvironmentVariable("PATH", libsPath + ";" + syspath)) {
+          Sikulix.terminate(999);
+        }
+        syspath = SysJNA.WinKernel32.getEnvironmentVariable("PATH");
+        if (!syspath.toUpperCase().contains(libsPath.toUpperCase())) {
+          log(-1, "addToWindowsSystemPath: adding to system path did not work:\n%s", syspath);
+          terminate(1, "addToWindowsSystemPath: did not work - see error");
+        }
+        log(lvl, "addToWindowsSystemPath: added to systempath:\n%s", libsPath);
+      }
+    }
+  }
+
+  private boolean checkJavaUsrPath(File fLibsFolder) {
+    String fpLibsFolder = fLibsFolder.getAbsolutePath();
+    Field usrPathsField = null;
+    boolean contained = false;
+    try {
+      usrPathsField = ClassLoader.class.getDeclaredField("usr_paths");
+    } catch (NoSuchFieldException ex) {
+      log(-1, "checkJavaUsrPath: get\n%s", ex);
+    } catch (SecurityException ex) {
+      log(-1, "checkJavaUsrPath: get\n%s", ex);
+    }
+    if (usrPathsField != null) {
+      usrPathsField.setAccessible(true);
+      try {
+        //get array of paths
+        String[] javapaths = (String[]) usrPathsField.get(null);
+        //check if the path to add is already present
+        for (String p : javapaths) {
+          if (new File(p).equals(fLibsFolder)) {
+            contained = true;
+            break;
+          }
+        }
+        //add the new path
+        if (!contained) {
+          final String[] newPaths = Arrays.copyOf(javapaths, javapaths.length + 1);
+          newPaths[newPaths.length - 1] = fpLibsFolder;
+          usrPathsField.set(null, newPaths);
+          log(lvl, "checkJavaUsrPath: added to ClassLoader.usrPaths");
+          contained = true;
+        }
+      } catch (IllegalAccessException ex) {
+        log(-1, "checkJavaUsrPath: set\n%s", ex);
+      } catch (IllegalArgumentException ex) {
+        log(-1, "checkJavaUsrPath: set\n%s", ex);
+      }
+      return contained;
+    }
+    return false;
   }
 //</editor-fold>
 
@@ -727,6 +1026,7 @@ int nMonitors = 0;
 
   private void initIDEbefore() {
     log(lvl, "initIDEbefore: entering");
+    optionsIDE = Preferences.userNodeForPackage(Sikulix.class);
     if (jreVersion.startsWith("1.6")) {
       String jyversion = "";
       Properties prop = new Properties();
@@ -797,24 +1097,51 @@ int nMonitors = 0;
     return runningJar;
   }
 
+  /**
+   *
+   * @return return true if Java version > 7
+   */
+  public boolean isJava8() {
+    return javaVersion > 7;
+  }
+
+  /**
+   *
+   * @return return true if Java version > 6
+   */
+  public boolean isJava7() {
+    return javaVersion > 6;
+  }
+
+  /**
+   * print out some basic information about the current runtime environment
+   */
   public void show() {
     if (hasOptions()) {
       dumpOptions();
     }
-    logp("***** show environment for %s", runType);
+    logp("***** show environment for %s (build %s)", runType, sxBuildStamp);
     logp("user.home: %s", fUserDir);
     logp("user.dir (work dir): %s", fWorkDir);
     logp("user.name: %s", userName);
     logp("java.io.tmpdir: %s", fTempPath);
-    logp("running %dBit on %s (%s) %s", javaArch, osName, osVersion, appType);
+    logp("running %dBit on %s (%s) %s", javaArch, osName, 
+            (linuxDistro.contains("???") ? osVersion : linuxDistro), appType);
     logp(javaShow);
     logp("app data folder: %s", fSikulixAppPath);
     logp("libs folder: %s", fLibsFolder);
     if (runningJar) {
       logp("executing jar: %s", fSxBaseJar);
     }
-    if (Debug.getDebugLevel() > minLvl - 1) {
+    if (Debug.getDebugLevel() > minLvl - 1 || isJythonReady) {
       dumpClassPath("sikulix");
+      if (isJythonReady) {
+        int saveLvl = Debug.getDebugLevel();
+        Debug.setDebugLevel(lvl);
+        JythonHelper.get().showSysPath();
+        Screen.showMonitors();
+        Debug.setDebugLevel(saveLvl);
+      }
     }
     logp("***** show environment end");
   }
@@ -868,145 +1195,17 @@ int nMonitors = 0;
   }
 //</editor-fold>
 
-//<editor-fold defaultstate="collapsed" desc="native libs handling">
-  /**
-   * INTERNAL USE: load a native library from the libs folder
-   *
-   * @param libname name of library without prefix/suffix/ending
-   */
-  public static void loadLibrary(String libname) {
-    RunTime.get().loadLib(libname);
-  }
-
-  private boolean loadLib(String libName) {
-    if (!areLibsExported) {
-      libsExport(runType);
-    }
-    if (!areLibsExported) {
-      terminate(1, "loadLib: deferred exporting of libs did not work");
-    }
-    if (runningWindows) {
-      libName += ".dll";
-    } else if (runningMac) {
-      libName = "lib" + libName + ".dylib";
-    } else if (runningLinux) {
-      libName = "lib" + libName + ".so";
-    }
-    File fLib = new File(fLibsFolder, libName);
-    Boolean vLib = libsLoaded.get(libName);
-    if (vLib == null || !fLib.exists()) {
-      terminate(1, String.format("lib: %s not available in %s", libName, fLibsFolder));
-    }
-    String msg = "loadLib: %s";
-    int level = lvl;
-    if (vLib) {
-      level++;
-      msg += " already loaded";
-    }
-    log(level, msg, libName);
-    if (vLib) {
-      return true;
-    }
-    if (runningLinux) {
-      if (!LinuxSupport.runLdd(new File(fLibsFolder, libName)));
-    }
-    try {
-      System.load(new File(fLibsFolder, libName).getAbsolutePath());
-    } catch (Error e) {
-      log(-1, "Problematic lib: %s (...TEMP...)", fLib);
-      log(-1, "%s loaded, but it might be a problem with needed dependent libraries\nERROR: %s",
-              libName, e.getMessage().replace(fLib.getAbsolutePath(), "...TEMP..."));
-      terminate(1, "problem with native library: " + libName);
-    }
-    libsLoaded.put(libName, true);
-    return true;
-  }
-
-  private boolean checkLibs(File flibsFolder) {
-    // 1.1-MadeForSikuliX64M.txt
-    String name = String.format("1.1-MadeForSikuliX%d%s.txt", javaArch, runningOn.toString().substring(0, 1));
-    if (!new File(flibsFolder, name).exists()) {
-      log(lvl, "libs folder empty or has wrong content");
-      return false;
-    }
-    return true;
-  }
-
-  private boolean addToWindowsSystemPath(File fLibsFolder) {
-    String syspath = SysJNA.WinKernel32.getEnvironmentVariable("PATH");
-    if (syspath == null) {
-      terminate(1, "addToWindowsSystemPath: cannot access system path");
-    } else {
-      String libsPath = (fLibsFolder.getAbsolutePath()).replaceAll("/", "\\");
-      if (!syspath.toUpperCase().contains(libsPath.toUpperCase())) {
-        if (!SysJNA.WinKernel32.setEnvironmentVariable("PATH", libsPath + ";" + syspath)) {
-          Sikulix.terminate(999);
-        }
-        syspath = SysJNA.WinKernel32.getEnvironmentVariable("PATH");
-        if (!syspath.toUpperCase().contains(libsPath.toUpperCase())) {
-          log(-1, "addToWindowsSystemPath: adding to system path did not work:\n%s", syspath);
-          terminate(1, "addToWindowsSystemPath: did not work - see error");
-        }
-        log(lvl, "addToWindowsSystemPath: added to systempath:\n%s", libsPath);
-      }
-    }
-    if (!checkJavaUsrPath(fLibsFolder)) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean checkJavaUsrPath(File fLibsFolder) {
-    String fpLibsFolder = fLibsFolder.getAbsolutePath();
-    Field usrPathsField = null;
-    boolean contained = false;
-    try {
-      usrPathsField = ClassLoader.class.getDeclaredField("usr_paths");
-    } catch (NoSuchFieldException ex) {
-      log(-1, "checkJavaUsrPath: get\n%s", ex);
-    } catch (SecurityException ex) {
-      log(-1, "checkJavaUsrPath: get\n%s", ex);
-    }
-    if (usrPathsField != null) {
-      usrPathsField.setAccessible(true);
-      try {
-        //get array of paths
-        String[] javapaths = (String[]) usrPathsField.get(null);
-        //check if the path to add is already present
-        for (String p : javapaths) {
-          if (new File(p).equals(fLibsFolder)) {
-            contained = true;
-            break;
-          }
-        }
-        //add the new path
-        if (!contained) {
-          final String[] newPaths = Arrays.copyOf(javapaths, javapaths.length + 1);
-          newPaths[newPaths.length - 1] = fpLibsFolder;
-          usrPathsField.set(null, newPaths);
-          log(lvl, "checkJavaUsrPath: added to ClassLoader.usrPaths");
-          contained = true;
-        }
-      } catch (IllegalAccessException ex) {
-        log(-1, "checkJavaUsrPath: set\n%s", ex);
-      } catch (IllegalArgumentException ex) {
-        log(-1, "checkJavaUsrPath: set\n%s", ex);
-      }
-      return contained;
-    }
-    return false;
-  }
-//</editor-fold>
-
 //<editor-fold defaultstate="collapsed" desc="options handling">
   private void loadOptions(Type typ) {
-    fOptions = new File(fWorkDir, fnOptions);
-    if (!fOptions.exists()) {
-      fOptions = new File(fUserDir, fnOptions);
-      if (!fOptions.exists()) {
-        fOptions = null;
-      }
-    }
+		for (File aFile : new File[] {fWorkDir, fUserDir, fSikulixStore}) {
+      log(lvl, "loadOptions: check: %s", aFile);
+			fOptions = new File(aFile, fnOptions);
+      if (fOptions.exists()) {
+				break;
+			} else {
+				fOptions = null;
+			}
+		}
     if (fOptions != null) {
       options = new Properties();
       try {
@@ -1046,10 +1245,16 @@ int nMonitors = 0;
 							cField.setBoolean(null, isOption(sKey));
 						} else if (ccField.getName() == "int"){
 							cField.setInt(null, getOptionNumber(sKey));
+						} else if (ccField.getName() == "float"){
+							cField.setInt(null, getOptionNumber(sKey));
+						} else if (ccField.getName() == "double"){
+							cField.setInt(null, getOptionNumber(sKey));
 						} else if (ccField.getName() == "String") {
 							cField.set(null, getOption(sKey));
 						}
-					} catch (Exception ex) {}
+					} catch (Exception ex) {
+						log(-1, "loadOptions: not possible: %s = %s", sKey, options.getProperty(sKey));
+					}
 				}
 			}
 		}
@@ -1127,7 +1332,7 @@ int nMonitors = 0;
     if (options == null) {
       return "";
     }
-    String pVal = options.getProperty(pName, "").toLowerCase();
+    String pVal = options.getProperty(pName, "");
     return pVal;
   }
 
@@ -1147,7 +1352,7 @@ int nMonitors = 0;
       options.setProperty(pName, sDefault);
       return sDefault;
     }
-    String pVal = options.getProperty(pName, sDefault).toLowerCase();
+    String pVal = options.getProperty(pName, sDefault);
     if (pVal.isEmpty()) {
       options.setProperty(pName, sDefault);
       return sDefault;
@@ -1180,7 +1385,7 @@ int nMonitors = 0;
     if (options == null) {
       return 0;
     }
-    String pVal = options.getProperty(pName, "0").toLowerCase();
+    String pVal = options.getProperty(pName, "0");
     int nVal = 0;
     try {
       nVal = Integer.decode(pVal);
@@ -1201,7 +1406,7 @@ int nMonitors = 0;
     if (options == null) {
       return nDefault;
     }
-    String pVal = options.getProperty(pName, nDefault.toString()).toLowerCase();
+    String pVal = options.getProperty(pName, nDefault.toString());
     int nVal = nDefault;
     try {
       nVal = Integer.decode(pVal);
@@ -1242,7 +1447,7 @@ int nMonitors = 0;
    */
   public void dumpOptions() {
     if (hasOptions()) {
-      logp("*** options dump %s", (fOptions != null ? "" : fOptions));
+      logp("*** options dump:\n%s", (fOptions == null ? "" : fOptions));
       for (String sOpt : getOptions().keySet()) {
         logp("%s = %s", sOpt, getOption(sOpt));
       }
@@ -1412,15 +1617,15 @@ int nMonitors = 0;
     List<String> files = new ArrayList<String>();
     String tessdata = "/sikulixtessdata";
     URL uContentList = clsRef.getResource(tessdata + "/" + fpContent);
-    clsRef = clsRefBase;
     if (uContentList != null) {
       files = doResourceListWithList(tessdata, files, null);
       if (files.size() > 0) {
-        return doExtractToFolderWithList(tessdata, folder, files);
+        files = doExtractToFolderWithList(tessdata, folder, files);
       }
-      return null;
+    } else {
+      files = extractResourcesToFolder("/sikulixtessdata", folder, null);
     }
-    return files;
+    return (files.size() == 0 ? null : files);
   }
   /**
    * export all resource files from the given subtree on classpath to the given folder retaining the subtree<br>
@@ -1431,7 +1636,8 @@ int nMonitors = 0;
    * @param filter implementation of interface FilenameFilter or null for no filtering
    * @return the filtered list of files (compact sikulixcontent format)
    */
-  public List<String> extractResourcesToFolder(String fpRessources, File fFolder, FilenameFilter filter) {
+
+	public List<String> extractResourcesToFolder(String fpRessources, File fFolder, FilenameFilter filter) {
     List<String> content = null;
     content = resourceList(fpRessources, filter);
     if (content == null) {
@@ -1442,7 +1648,7 @@ int nMonitors = 0;
     }
     return doExtractToFolderWithList(fpRessources, fFolder, content);
   }
-  
+
   private List<String> doExtractToFolderWithList(String fpRessources, File fFolder, List<String> content) {
     int count = 0;
     int ecount = 0;
@@ -1616,59 +1822,41 @@ int nMonitors = 0;
   }
 
   public URL resourceLocation(String folderOrFile) {
+		log(lvl, "resourceLocation: (%s) %s", clsRef, folderOrFile);
     if (!folderOrFile.startsWith("/")) {
       folderOrFile = "/" + folderOrFile;
     }
     return clsRef.getResource(folderOrFile);
   }
 
-  /**
-   * INTERNAL USE: only for testing - not threadsafe !!!
-   * @param folderOrFile the resource relative to root
-   * @param clsRef the reference class on classpath
-   * @return the ressource URL or null if not found
-   */
-  public URL resourceLocation(String folderOrFile, String cls) {
-    if (!folderOrFile.startsWith("/")) {
-      folderOrFile = "/" + folderOrFile;
-    }
-    try {
-      Class clsRef = Class.forName(cls);
-      URL aURL = clsRef.getResource(folderOrFile);
-      if (aURL != null) {
-        this.clsRef = clsRef;
-        return aURL;
-      }
-    } catch (Exception ex) {}
-    return null;
-  }
-  
   private List<String> resourceList(String folder, FilenameFilter filter) {
+		log(lvl, "resourceList: enter");
     List<String> files = new ArrayList<String>();
     if (!folder.startsWith("/")) {
       folder = "/" + folder;
     }
     URL uFolder = resourceLocation(folder);
     if (uFolder == null) {
+			log(lvl, "resourceList: not found: %s", folder);
       return files;
     }
+    try {
+      uFolder = new URL(uFolder.toExternalForm().replaceAll(" ", "%20"));
+    } catch (Exception ex) {}
     URL uContentList = clsRef.getResource(folder + "/" + fpContent);
-    clsRef = clsRefBase;
     if (uContentList != null) {
       return doResourceListWithList(folder, files, filter);
     }
     File fFolder = null;
     try {
       fFolder = new File(uFolder.toURI());
-      String sFolder = uFolder.getPath();
+			log(lvl, "resourceList: having folder: %s", fFolder);
+      String sFolder = FileManager.normalizeAbsolute(fFolder.getPath(), false);
       if (":".equals(sFolder.substring(2, 3))) {
         sFolder = sFolder.substring(1);
       }
-      if (sFolder.endsWith("/")) {
-        sFolder = sFolder.substring(0, sFolder.length() - 1);
-      }
       files.add(sFolder);
-      files = doResourceListFolder(fFolder, files, filter);
+      files = doResourceListFolder(new File(sFolder), files, filter);
       files.remove(0);
       return files;
     } catch (Exception ex) {
@@ -1685,6 +1873,7 @@ int nMonitors = 0;
       return null;
     }
     String fpFolder = parts[1];
+		log(lvl, "resourceList: having jar: %s", uFolder);
     return doResourceListJar(uFolder, fpFolder, files, filter);
   }
 
@@ -2128,20 +2317,36 @@ int nMonitors = 0;
    * @param artefact the identifying string
    * @return the absolute path of the entry found - null if not found
    */
-  public String isOnClasspath(String artefact) {
-    artefact = FileManager.slashify(artefact, false).toUpperCase();
+  private String isOnClasspath(String artefact, boolean isJar) {
+    artefact = FileManager.slashify(artefact, false);
     String cpe = null;
     if (classPath.isEmpty()) {
       storeClassPath();
     }
     for (URL entry : classPath) {
       String sEntry = FileManager.slashify(new File(entry.getPath()).getPath(), false);
-      if (sEntry.toUpperCase().contains(artefact)) {
+      if (sEntry.contains(artefact)) {
+        if (isJar) {
+          if (!sEntry.endsWith(".jar")) {
+            continue;
+          }
+					if (!new File(sEntry).getName().contains(artefact)) {
+						continue;
+					}
+        }
         cpe = new File(entry.getPath()).getPath();
         break;
       }
     }
     return cpe;
+  }
+
+  public String isJarOnClasspath(String artefact) {
+    return isOnClasspath(artefact, true);
+  }
+
+  public String isOnClasspath(String artefact) {
+    return isOnClasspath(artefact, false);
   }
 
   public URL fromClasspath(String artefact) {
@@ -2352,11 +2557,11 @@ int nMonitors = 0;
       }
       args = argsx.toArray(new String[0]);
     }
-//    if (args[0].startsWith("#")) {
-//      String pgm = args[0].substring(1);
-//      args[0] = (new File(libsDir, pgm)).getAbsolutePath();
-//      runcmd(new String[]{"chmod", "ugo+x", args[0]});
-//    }
+    if (args[0].startsWith("#")) {
+      String pgm = args[0].substring(1);
+      args[0] = (new File(pgm)).getAbsolutePath();
+      runcmd(new String[]{"chmod", "ugo+x", args[0]});
+    }
     String result = "";
     String error = runCmdError + NL;
     boolean hasError = false;
@@ -2391,11 +2596,15 @@ int nMonitors = 0;
       retVal = 9999;
       hasError = true;
     }
-    result = String.format("%d%s%s", retVal, NL, result);
     if (hasError) {
       result += error;
     }
-    return result;
+    lastResult = result;
+    return String.format("%d%s%s", retVal, NL, result);
+  }
+  
+  public String getLastCommandResult() {
+    return lastResult;
   }
 //</editor-fold>
 
@@ -2443,6 +2652,12 @@ int nMonitors = 0;
     options.addAll(Arrays.asList(args));
     for (int n = 0; n < options.size(); n++) {
       String opt = options.get(n);
+			if ("nodebug".equals(opt)) {
+				return -2;
+			}
+			if (Type.IDE.equals(typ) && "-s".equals(opt.toLowerCase())) {
+				return -3;
+			}
       if (!opt.startsWith("-")) {
         continue;
       }

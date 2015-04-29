@@ -10,6 +10,8 @@ import org.sikuli.script.RunTime;
 import java.util.*;
 import jxgrabkey.HotkeyConflictException;
 import jxgrabkey.JXGrabKey;
+import org.sikuli.basics.Debug;
+import org.sikuli.script.RunTime;
 
 public class LinuxHotkeyManager extends HotkeyManager {
    static{
