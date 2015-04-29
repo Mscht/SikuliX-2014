@@ -123,7 +123,10 @@ public class CommandArgs {
 
     _options.addOption(CommandArgsEnum.SPLASH.shortname(), 
             CommandArgsEnum.SPLASH.longname(), false, CommandArgsEnum.SPLASH.description());
-
+    
+    _options.addOption(CommandArgsEnum.REPOSITORY.longname(),CommandArgsEnum.REPOSITORY.shortname(),
+            true, CommandArgsEnum.REPOSITORY.description());
+    
     _options.addOption(
             OptionBuilder.withLongOpt(CommandArgsEnum.INTERACTIVE.longname())
             .hasOptionalArg()

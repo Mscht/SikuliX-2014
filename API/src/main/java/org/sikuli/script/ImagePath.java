@@ -223,6 +223,7 @@ public class ImagePath {
    */
   public static URL find(String fname) {
     URL fURL = null;
+    fname = FileManager.makeImageRepoPathAbsolute(fname);
 		String proto = "";
     fname = FileManager.normalize(fname);
     if (new File(fname).isAbsolute()) {
@@ -592,4 +593,4 @@ public class ImagePath {
     }
     return null;
   }
-}
+  }

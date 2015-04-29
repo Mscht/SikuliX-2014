@@ -16,7 +16,7 @@ import java.util.Date;
 import org.sikuli.script.Image;
 
 /**
- * This is the container for all
+ * This is the container for all 
  */
 public class Settings {
 
@@ -137,7 +137,9 @@ public class Settings {
 	public static boolean proxyChecked = false;
 	public static Proxy proxy = null;
     
-    
+  public static String PROTOCOL_IMAGEREPO = "repo://";
+  public static String IMAGEREPO = null;
+
   /**
    * INTERNAL USE: to trigger the initialization
    */
@@ -148,7 +150,7 @@ public class Settings {
     String proxyIP = prefs.get("ProxyIP", null);
     InetAddress proxyAddress = null;
     String proxyPort = prefs.get("ProxyPort", null);
-
+    
 //<editor-fold defaultstate="collapsed" desc="moved to RunTime">
 //    SikuliRepo = null;
 //		Properties prop = new Properties();
@@ -243,7 +245,7 @@ public class Settings {
 //		}
 //		tessData.put("eng", "http://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz");
 //</editor-fold>
-    
+
     getOS();
 	}
   

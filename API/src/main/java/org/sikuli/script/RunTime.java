@@ -1272,6 +1272,7 @@ int nMonitors = 0;
   private final String dlDevLink = "http://nightly.sikuli.de/";
   public String SikuliRepo;
   public String SikuliLocalRepo = "";
+  public String userImageRepo;
   public String[] ServerList = {"http://dl.dropboxusercontent.com/u/42895525/SikuliX"};
   private String sversion;
   private String bversion;
@@ -1306,6 +1307,7 @@ int nMonitors = 0;
 
   private void initSikulixOptions() {
     SikuliRepo = null;
+    userImageRepo = null;
     Properties prop = new Properties();
     String svf = "sikulixversion.txt";
     try {
