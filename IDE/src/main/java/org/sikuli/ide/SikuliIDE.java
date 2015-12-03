@@ -82,6 +82,7 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
   private boolean msgPaneCollapsed = false;
   private EditorConsolePane _console;
   private JXCollapsiblePane _cmdList;
+  private JXCollapsiblePane _repoPane;
   private SikuliIDEStatusBar _status = null;
   private ButtonCapture _btnCapture;
   private ButtonRun _btnRun = null, _btnRunViz = null;
@@ -101,6 +102,7 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
   private JCheckBoxMenuItem _chkShowUnitTest;
   private JMenuItem chkShowCmdList = null;
   private JCheckBoxMenuItem chkShowThumbs;
+  private JCheckBoxMenuItem chShowRepo;
   //private UnitTestRunner _testRunner;
   private static CommandLine cmdLine;
   private static String cmdValue;
@@ -326,8 +328,13 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
     if (PreferencesUser.getInstance().getPrefMoreCommandBar()) {
       editPane.add(cp, BorderLayout.WEST);
     }
-
+    JComponent repoPane = createRepoPane();
     editPane.add(_mainSplitPane, BorderLayout.CENTER);
+    editPane.add(repoPane, BorderLayout.EAST);
+    
+    //JSplitPane mainAndRepoSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, _mainSplitPane, repoPane);
+    //editPane.add(mainAndRepoSplitPane,BorderLayout.CENTER);
+    
     c.add(editPane, BorderLayout.CENTER);
 
     JToolBar tb = initToolbar();
@@ -1579,6 +1586,11 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
     _viewMenu.add(createMenuItem(chkShowThumbs,
             KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_T, scMask),
             new ViewAction(ViewAction.SHOW_THUMBS)));
+    
+    chShowRepo = new JCheckBoxMenuItem("Show Repository Browser", true);
+    _viewMenu.add(createMenuItem(chShowRepo,
+            KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, scMask),
+            new ViewAction(ViewAction.CMD_REPO)));
 
 //TODO Message Area clear
 //TODO Message Area LineBreak
@@ -1589,7 +1601,8 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
     static final String UNIT_TEST = "toggleUnitTest";
     static final String CMD_LIST = "toggleCmdList";
     static final String SHOW_THUMBS = "toggleShowThumbs";
-
+    static final String CMD_REPO = "toggleShowRepo";
+    
     public ViewAction() {
       super();
     }
@@ -1618,6 +1631,10 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
         _sidePane.setCollapsed(true);
       }
     }
+    
+    public void toggleShowRepo(ActionEvent ae) {
+        _repoPane.setCollapsed(!_repoPane.isCollapsed());
+  }
   }
   //</editor-fold>
 
@@ -1626,9 +1643,11 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
     int scMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMask();
     _toolMenu.setMnemonic(java.awt.event.KeyEvent.VK_T);
 
+    if (SikuliIDE.runTime.SikuliRepo != null){//Settings.SikuliRepo != null) {
       _toolMenu.add(createMenuItem(_I("menuToolExtensions"),
               null,
               new ToolAction(ToolAction.EXTENSIONS)));
+  }
   }
 
   class ToolAction extends MenuAction {
@@ -1918,7 +1937,17 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
       {_I("cmdObserve")},};
     return CommandsOnToolbar;
   }
-
+  private JComponent createRepoPane() {
+    RepoPane repoPane = new RepoPane(JSplitPane.VERTICAL_SPLIT, _mainSplitPane);
+    repoPane.setPreferredSize(new Dimension(400, 1000));
+    
+    _repoPane = new JXCollapsiblePane(JXCollapsiblePane.Direction.LEFT);
+    _repoPane.setMinimumSize(new Dimension(100, 50));
+    _repoPane.add(repoPane.getSplitter());
+    _repoPane.add(repoPane);//repoSplitPane);
+    _repoPane.setCollapsed(false);
+    return _repoPane;
+  }
   private JComponent createCommandPane() {
     JXTaskPaneContainer con = new JXTaskPaneContainer();
 
@@ -2356,16 +2385,21 @@ public class SikuliIDE extends JFrame implements InvocationHandler {
 						addScriptCode(srunner);
 						srunners[0] = srunner;
 						try {
-							ImagePath.reset(path.getAbsolutePath());
-							String tabtitle = tabPane.getTitleAt(tabPane.getSelectedIndex());
-							if (tabtitle.startsWith("*")) {
-								tabtitle = tabtitle.substring(1);
-							}
-							int ret = srunner.runScript(scriptFile, path, runTime.getArgs(),
-											new String[]{parent, tabtitle});
-							addErrorMark(ret);
-							srunner.close();
-							srunners[0] = null;
+                                                    String[] args = RunTime.get().getArgs(); //String[] args = Settings.getArgs();
+        
+                                                    args = Arrays.copyOf(args, args.length+2);
+                                                    args[args.length-2] = "-ri";
+                                                    args[args.length-1] = PreferencesUser.getInstance().getPrefImageRepoPath();
+                                                    ImagePath.reset(path.getAbsolutePath());//ImagePath.resetBundlePath(path.getAbsolutePath());
+                                                    String tabtitle = tabPane.getTitleAt(tabPane.getSelectedIndex());
+                                                    if (tabtitle.startsWith("*")) {
+                                                            tabtitle = tabtitle.substring(1);
+                                                    }
+                                                    int ret = srunner.runScript(scriptFile, path, runTime.getArgs(),
+                                                                                    new String[]{parent, tabtitle});
+                                                    addErrorMark(ret);
+                                                    srunner.close();
+                                                    srunners[0] = null;
 						} catch (Exception e) {
 							srunner.close();
 							srunners[0] = null;

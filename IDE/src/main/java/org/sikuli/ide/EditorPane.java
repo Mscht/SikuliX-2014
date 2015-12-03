@@ -82,7 +82,8 @@ public class EditorPane extends JTextPane implements KeyListener, CaretListener 
 	private boolean hasErrorHighlight = false;
 
 	public boolean showThumbs;
-	static Pattern patPngStr = Pattern.compile("(\"[^\"]+?\\.(?i)(png|jpg|jpeg)\")");
+	static Pattern patPngStr = Pattern.compile("(\"[^\"]+?\\.(?i)(png|jpg)\")");
+        static Pattern patPngRepoStr = Pattern.compile("(\"" + Settings.PROTOCOL_IMAGEREPO + "[^\"]+?\\.(?i)(png|jpg|jpeg)\")");
 	static Pattern patCaptureBtn = Pattern.compile("(\"__CLICK-TO-CAPTURE__\")");
 	static Pattern patPatternStr = Pattern.compile(
 					"\\b(Pattern\\s*\\(\".*?\"\\)(\\.\\w+\\([^)]*\\))+)");
@@ -518,7 +519,7 @@ public class EditorPane extends JTextPane implements KeyListener, CaretListener 
 		if (img.endsWith(".png") || img.endsWith(".jpg") || img.endsWith(".jpeg")) {
 			fimg = FileManager.slashify(img, false);
 			if (fimg.contains("/")) {
-				if (!fimg.contains(pbundle)) {
+				if (!(fimg.contains(pbundle) || fimg.startsWith(Settings.PROTOCOL_IMAGEREPO))) {
 					return;
 				}
 				img = new File(fimg).getName();
@@ -999,6 +1000,7 @@ public class EditorPane extends JTextPane implements KeyListener, CaretListener 
 			end = parseLine(start, end, patCaptureBtn);
 			end = parseLine(start, end, patPatternStr);
 			end = parseLine(start, end, patRegionStr);
+                        end = parseLine(start, end, patPngRepoStr);
 			end = parseLine(start, end, patPngStr);
 		} catch (BadLocationException e) {
 			log(-1, "parseRange: Problem while trying to parse line\n%s", e.getMessage());
@@ -1037,7 +1039,7 @@ public class EditorPane extends JTextPane implements KeyListener, CaretListener 
 		String imgStr = doc.getText(startOff, endOff - startOff);
 		JComponent comp = null;
 
-		if (ptn == patPatternStr || ptn == patPngStr) {
+		if (ptn == patPatternStr || ptn == patPngStr || ptn == patPngRepoStr) {
 			if (pref.getPrefMoreImageThumbs()) {
 				comp = EditorPatternButton.createFromString(this, imgStr, null);
 			} else {
@@ -1069,10 +1071,10 @@ public class EditorPane extends JTextPane implements KeyListener, CaretListener 
 		if (ifn == null) {
 			return "\"" + EditorPatternLabel.CAPTURE + "\"";
 		}
-		String imgName = new File(ifn).getName();
-		if (img != null) {
-			imgName = img.getName();
-		}
+                String imgName = (ifn.startsWith(Settings.PROTOCOL_IMAGEREPO)) 
+                        ? ifn 
+                        : new File(ifn).getName();
+		
 		String pat = "Pattern(\"" + imgName + "\")";
 		String ret = "";
 		if (sim > 0) {

@@ -201,7 +201,7 @@ public class ComponentMover extends MouseAdapter{
 
     *
 
-    *  @param  dragInsets
+    *  @param dragInsets the insets
 
     */
 
@@ -286,6 +286,8 @@ public class ComponentMover extends MouseAdapter{
     *  the closest grid position. Snapping will occur when the mouse is
 
     *  dragged half way.
+
+    *  @param snapSize Size of the snap
 
     */
 

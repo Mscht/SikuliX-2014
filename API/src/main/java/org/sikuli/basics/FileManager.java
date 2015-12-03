@@ -894,6 +894,31 @@ public class FileManager {
     }
     return scriptFile;
   }
+  
+  /**
+   * If the image path beginns with Settings.PROTOCOL_IMAGEREPO it returns the 
+   * image path resolved to the given image repository given by 
+   * the settings or by the preferences if no entry in the settings.
+   * 
+   * @param fName The path to the image.
+   * @return  The absolute path to the image
+   */
+    public static String makeImageRepoPathAbsolute(String fName){
+        fName = slashify(fName, false);
+        if (fName.startsWith(Settings.PROTOCOL_IMAGEREPO)){
+            String explizitRepo = RunTime.get().userImageRepo;//Settings.SikuliRepo;
+            if (explizitRepo!=null){
+                fName = explizitRepo + "/" + fName.substring(7);
+            } else {
+                String prefImageRepoPath = PreferencesUser.getInstance().getPrefImageRepoPath();
+                if (prefImageRepoPath != null || "".equals(prefImageRepoPath)){
+                    fName = prefImageRepoPath + "/" + fName.substring(7);
+                }
+            }
+            fName = FileManager.slashify(fName, false);
+        }
+        return fName;
+    }
 
   public static URL makeURL(String fName) {
     return makeURL(fName, "file");

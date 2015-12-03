@@ -8,21 +8,28 @@ package org.sikuli.ide;
 
 import org.sikuli.basics.PreferencesUser;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DragGestureEvent;
+import java.awt.dnd.DragGestureListener;
+import java.awt.dnd.DragSource;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.file.Paths;
 import javax.imageio.*;
 import javax.swing.*;
 import org.sikuli.script.Location;
 import org.sikuli.basics.Debug;
 import org.sikuli.basics.FileManager;
+import org.sikuli.basics.Settings;
 import org.sikuli.script.Image;
 
 class EditorPatternButton extends JButton implements ActionListener, Serializable, MouseListener {
 
 	public static final int DEFAULT_NUM_MATCHES = 50;
 	static final float DEFAULT_SIMILARITY = 0.7f;
-	private String _imgFilename, _thumbFname, _imgFilenameSaved;
+    private String _imgFilename, _imgFilenameRepository, _thumbFname, _imgFilenameSaved;
   private Image _image;
   private JLabel patternImageIcon = null;
 	private EditorPane _pane;
@@ -39,7 +46,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
   private String buttonSimilar = "";
   private String buttonOffset = "";
   private EditorPatternLabel _lbl;
-
+    
   protected EditorPatternButton(EditorPane pane) {
     this._image = null;
 		init(pane, null, null);
@@ -83,22 +90,54 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 		setCursor(new Cursor(Cursor.HAND_CURSOR));
 		addActionListener(this);
     setButtonText();
+        
+        DragSource ds = new DragSource();
+        ds.createDefaultDragGestureRecognizer(this, DnDConstants.ACTION_MOVE, new DragGestureListener() {
+            @Override
+            public void dragGestureRecognized(DragGestureEvent event) {
+                String path;
+                if (_imgFilenameRepository!=null){
+//                    path = "\""+Settings.PROTOCOL_IMAGEREPO + 
+//                                Paths.get(PreferencesUser.getInstance().getPrefMoreImagesPath())
+//                                .relativize(Paths.get(_imgFilename))+"\"";
+                    path = _imgFilenameRepository;
+                }else{
+                    path = _imgFilename;
 	}
+                
+                getModel().setArmed(false);
+                event.startDrag(null, null,//createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight()), 
+                                new Point(0,0), new ImageStringSelection(path, true), null);
+            }
+        });
+    }
 
 	public BufferedImage createThumbnailImage(int maxHeight) {
 		return createThumbnailImage(_imgFilename, maxHeight);
 	}
-
+  private static String getResolvedPath(String path){
+        if (FileManager.slashify(path, false).startsWith("repo://")){
+            String absFile = PreferencesUser.getInstance().getPrefImageRepoPath() + "/" + path.substring(7);
+            return absFile;
+        } else{
+            return path;
+        }
+  }
+  
   public static EditorPatternButton createFromFilename(EditorPane parentPane, String str, EditorPatternLabel lbl) {
 		return createFromString(parentPane, "\"" + str + "\"", lbl);
 	}
-
+ 
   public static EditorPatternButton createFromString(EditorPane parentPane, String str, EditorPatternLabel lbl) {
     if (!str.startsWith("Pattern")) {
 			str = str.substring(1, str.length() - 1);
-      str = FileManager.slashify(str, false);
+        String absStr = getResolvedPath(str);
+        str = FileManager.slashify(absStr, false);
 			Image img = Image.createThumbNail(str);
-      if (img.isValid() && img.isBundled()) {
+        //if (parentPane.getImageInBundle(FileManager.slashify(absStr, false)).isValid()) {
+        //  return new EditorPatternButton(parentPane, FileManager.slashify(str, false));
+        //}
+        if (img.isValid()){// Warum?? && img.isBundled()) {
         return new EditorPatternButton(parentPane, img);
       }
       return null;
@@ -111,10 +150,11 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 				btn.setExact(true);
 				btn.setSimilarity(0.99f);
 			} else if (tok.startsWith("Pattern")) {
-				String filename = FileManager.slashify(tok.substring(
-								tok.indexOf("\"") + 1, tok.lastIndexOf("\"")), false);
-        Image img = Image.createThumbNail(filename);
-        if (img.isValid() && img.isBundled()) {
+				String filename = tok.substring(
+								tok.indexOf("\"") + 1, tok.lastIndexOf("\""));
+        String absStr = getResolvedPath(filename);
+        Image img = Image.createThumbNail(FileManager.slashify(absStr, false));//parentPane.getImageInBundle(FileManager.slashify(absStr, false));
+        if (img.isValid()) {// Warum?? && img.isBundled()) {
 					btn.setFilename(img);
         } else {
           return null;
@@ -188,6 +228,9 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 	}
 
 	public String getFilename() {
+                if (_imgFilenameRepository != null){
+                    return _imgFilename;
+                }
 		File img = new File(_imgFilename);
 		String oldBundle = img.getParent();
 		String newBundle = _pane.getSrcBundle();
@@ -200,17 +243,25 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 	}
 
   public void setFilename(String fileName) {
-    _image = _pane.getImageInBundle(fileName);
+    if (fileName.startsWith("repo://")){
+        _imgFilenameRepository = fileName;
+    } else if (Paths.get(fileName).startsWith(PreferencesUser.getInstance().getPrefImageRepoPath())){
+        _imgFilenameRepository = Paths.get(PreferencesUser.getInstance().getPrefImageRepoPath()).relativize(Paths.get(fileName)).toString();
+    }
+    _image = _pane.getImageInBundle(getResolvedPath(fileName));
     _imgFilename = _image.getFilename();
     setIcon(new ImageIcon(createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight())));
     setButtonText();
   }
-
+  
   private void setFilename(Image img) {
     _image = img;
     _imgFilename = _image.getFilename();
+    if (Paths.get(_imgFilename).startsWith(PreferencesUser.getInstance().getPrefImageRepoPath())){
+        _imgFilenameRepository = Paths.get(PreferencesUser.getInstance().getPrefImageRepoPath()).relativize(Paths.get(_imgFilename)).toString();
+    }
     setIcon(new ImageIcon(createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight())));
-    setButtonText();
+    setButtonText();    
   }
 
 	private String createThumbnail(String imgFname) {
@@ -397,7 +448,10 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 
 	@Override
 	public String toString() {
-    return _pane.getPatternString(_imgFilename, _similarity, _offset, _image);
+    return _pane.getPatternString(
+            (_imgFilenameRepository!=null)
+            ? Settings.PROTOCOL_IMAGEREPO + _imgFilenameRepository : _imgFilename,
+            _similarity, _offset, _image);
 	}
 
   private void setButtonText() {

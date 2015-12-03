@@ -398,6 +398,23 @@ public class PreferencesUser {
 		return pref.get("PREF_MORE_IMAGES_PATH", null);
 	}
 
+// support for global image repository
+	public void setPrefUseImageRepo(boolean flag) {
+		pref.putBoolean("PREF_USE_IMAGE_REPO", flag);
+	}
+
+	public boolean getPrefUseImageRepo() {
+		return pref.getBoolean("PREF_USE_IMAGE_REPO", false);
+	}
+
+	public void setPrefImageRepoPath(String path) {
+		pref.put("PREF_IMAGE_REPO_PATH", path);
+	}
+
+	public String getPrefImageRepoPath() {
+		return pref.get("PREF_IMAGE_REPO_PATH", "");
+	}
+
 // ***** message area settings
 	public void setPrefMoreMessage(int typ) {
 		pref.putInt("PREF_MORE_MESSAGE", typ);
@@ -537,6 +554,10 @@ public class PreferencesUser {
 
 		setPrefMoreImages(false);
 		setPrefMoreImagesPath("");
+                
+// ***** Global image repository
+                setPrefUseImageRepo(false);
+		setPrefImageRepoPath("");
 
 // ***** message area settings
 		if (NEWBEE == typ) {

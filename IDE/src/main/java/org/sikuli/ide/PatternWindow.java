@@ -45,7 +45,7 @@ public class PatternWindow extends JFrame {
   String fileRenameNew;
   Dimension pDim;
 
-  static String _I(String key, Object... args) {
+	static String _I(String key, Object... args) {
 		return SikuliIDEI18N._I(key, args);
 	}
 
@@ -172,7 +172,7 @@ public class PatternWindow extends JFrame {
 				btnCancel.doClick();
 			}
 		});
-		KeyStroke escapeKeyStroke =
+		KeyStroke escapeKeyStroke = 
 			KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0, false);
 		this.getRootPane().
 			getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).
@@ -245,7 +245,7 @@ public class PatternWindow extends JFrame {
         if (isFileOverwritten) {
           if (!revertImageRename()) {
             return;
-          }
+			}
         }
         isFileOverwritten = true;
 			}
@@ -336,7 +336,7 @@ public class PatternWindow extends JFrame {
 				_imgBtn.resetParameters();
         if (isFileOverwritten) {
           revertImageRename();
-        }
+			}
 			}
 			_imgBtn.getWindow().close();
 			_parent.dispose();
