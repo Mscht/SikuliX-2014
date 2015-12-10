@@ -35,6 +35,8 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import static javax.swing.Action.MNEMONIC_KEY;
@@ -51,11 +53,15 @@ import javax.swing.KeyStroke;
 import static javax.swing.SwingConstants.CENTER;
 import static javax.swing.SwingConstants.LEFT;
 import static javax.swing.SwingConstants.TOP;
+import javax.swing.event.TreeSelectionEvent;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellEditor;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeCellEditor;
 import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 import org.sikuli.basics.FileManager;
 import org.sikuli.ide.ImageStringSelection;
@@ -137,6 +143,20 @@ public class FileTree extends JTree {
         }
         
    }
+    public static class DirectoryTreeModel extends DefaultTreeModel{
+
+        public DirectoryTreeModel(TreeNode root) {
+            super(root);
+        }
+
+        @Override
+        public void valueForPathChanged(TreePath path, Object newValue) {
+            boolean valueHasSpaces = ((String) newValue).contains(" ");
+            if (!valueHasSpaces) super.valueForPathChanged(path, newValue);
+            else System.out.println("Directory name must not have spaces");;
+        }
+        
+    }
     /**
      * Creates new form FileTree
      * @param filePath
@@ -144,6 +164,8 @@ public class FileTree extends JTree {
     public FileTree(String filePath) {
         initComponents();
         this.setShowsRootHandles(true);
+        this.setEditable(true);
+
         if (filePath!=null && !filePath.equals("")){
             //super(scan(Paths.get(filePath)));
             rootPath = filePath;
@@ -299,15 +321,15 @@ public class FileTree extends JTree {
 			{
                             // this is an initializer block
                             {
-				putValue(NAME, "Neuer Ordner");
+				putValue(NAME, "New folder");
 				putValue(MNEMONIC_KEY, new Integer(KeyStroke.getKeyStroke("N").getKeyCode()));
-				putValue(SHORT_DESCRIPTION, "Neuer Ordner");
+				putValue(SHORT_DESCRIPTION, "Create a new folder");
 				putValue(SMALL_ICON, new ImageIcon("newfile.gif"));
                             }
                             @Override
                             public void actionPerformed(ActionEvent e)
                             {   
-                                DirectoryTreeNode newNode = DirectoryTreeNode.createDir(Paths.get(obj.getUserObject().toString()+"\\"+"Neuer Ordner"), true);
+                                DirectoryTreeNode newNode = DirectoryTreeNode.createDir(Paths.get(obj.getUserObject().toString()+"\\"+"NewFolder"), true);
                                 newNode.createIfnExists();
                                 //newNode = new FileTree.DirectoryTreeNode(Paths.get("Neuer Ordner"));
                                 //newNode.setUserObject(Paths.get(obj.getUserObject().toString()+"\\"+"Neuer Ordner"));
@@ -320,8 +342,51 @@ public class FileTree extends JTree {
                                 tree.setSelectionPath(newSelection);
                             }
 			};
+                        Action renameAction = new AbstractAction()
+			{
+                            // this is an initializer block
+                            {
+				putValue(NAME, "Rename");
+				putValue(MNEMONIC_KEY, new Integer(KeyStroke.getKeyStroke("R").getKeyCode()));
+				putValue(SHORT_DESCRIPTION, "Rename");
+				putValue(SMALL_ICON, new ImageIcon("renamefile.gif"));
+                            }
+                            @Override
+                            public void actionPerformed(ActionEvent e)
+                            {   
+                                tree.startEditingAtPath(tree.getSelectionPath());
+                            }
+			};
+                        Action deleteAction = new AbstractAction()
+			{
+                            // this is an initializer block
+                            {
+				putValue(NAME, "Delete");
+				putValue(MNEMONIC_KEY, new Integer(KeyStroke.getKeyStroke("D").getKeyCode()));
+				putValue(SHORT_DESCRIPTION, "Delete");
+				putValue(SMALL_ICON, new ImageIcon("delete.gif"));
+                            }
+                            @Override
+                            public void actionPerformed(ActionEvent e)
+                            {   
+                                try {
+                                    TreeNode parentNode = obj.getParent();
+                                    int index = parentNode.getIndex(obj);
+                                    ((DirectoryTreeNode)obj.getParent()).remove(obj);
+                                    DefaultTreeModel mdl = (DefaultTreeModel) tree.treeModel;
+                                    mdl.reload(parentNode);
+                                    //mdl.nodesWereRemoved(obj, new int[]{index}, new Object[]{obj});
+                                    Files.deleteIfExists(Paths.get(obj.getUserObject().toString()));
+                                    //DirectoryTreeNode newNode = DirectoryTreeNode.createDir(Paths.get(obj.getUserObject().toString()+"\\"+"Neuer Ordner"), true);
+                                } catch (IOException ex) {
+                                    Logger.getLogger(FileTree.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            }
+			};
 			JPopupMenu popup = new JPopupMenu();
 			popup.add(new JMenuItem(newAction));
+			popup.add(new JMenuItem(renameAction));
+			popup.add(new JMenuItem(deleteAction));
 			popup.show(tree, x, y);
 		}
 		public void mousePressed(MouseEvent e) {
@@ -385,7 +450,7 @@ public class FileTree extends JTree {
         return ret;
    }
    public void Refresh(){
-       super.setModel(new DefaultTreeModel(scan(Paths.get(rootPath))));
+       super.setModel(new DirectoryTreeModel(scan(Paths.get(rootPath))));
    }
    
    /**

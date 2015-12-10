@@ -33,6 +33,7 @@ public class ImageStringSelection implements Transferable, ClipboardOwner{
         if (string.startsWith("\"")) string = string.substring(1);
         if (string.startsWith(Settings.PROTOCOL_IMAGEREPO)) _isRepoImage = true;
         if (string.endsWith("\"")) string = string.substring(0, string.length()-1);
+        string = string.replace(" ", "+");
         try {
             data = new URI(FileManager.slashify(string, false));
         } catch (URISyntaxException ex) {
