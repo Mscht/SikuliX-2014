@@ -16,6 +16,7 @@ import java.awt.dnd.DragSource;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import javax.imageio.*;
 import javax.swing.*;
@@ -243,6 +244,7 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
 	}
 
   public void setFilename(String fileName) {
+    fileName = FileManager.slashify(fileName, false);
     if (fileName.startsWith("repo://")){
         _imgFilenameRepository = fileName;
     } else if (Paths.get(fileName).startsWith(PreferencesUser.getInstance().getPrefImageRepoPath())){
@@ -256,9 +258,10 @@ class EditorPatternButton extends JButton implements ActionListener, Serializabl
   
   private void setFilename(Image img) {
     _image = img;
-    _imgFilename = _image.getFilename();
+    _imgFilename = FileManager.slashify(_image.getFilename(), false);
     if (Paths.get(_imgFilename).startsWith(PreferencesUser.getInstance().getPrefImageRepoPath())){
-        _imgFilenameRepository = Paths.get(PreferencesUser.getInstance().getPrefImageRepoPath()).relativize(Paths.get(_imgFilename)).toString();
+        Path imgRepoPath = Paths.get(PreferencesUser.getInstance().getPrefImageRepoPath()).relativize(Paths.get(_imgFilename));
+        _imgFilenameRepository = FileManager.slashify(imgRepoPath.toString(), false);
     }
     setIcon(new ImageIcon(createThumbnailImage(_imgFilename, PreferencesUser.getInstance().getDefaultThumbHeight())));
     setButtonText();    
