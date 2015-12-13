@@ -380,6 +380,7 @@ public class Settings {
 	public static boolean UserLogs = true;
 	public static String UserLogPrefix = "user";
 	public static boolean UserLogTime = true;
+  public static boolean TraceLogs = false;
 	/**
 	 * default pixels to add around with nearby() and grow()
 	 */

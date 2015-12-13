@@ -56,12 +56,15 @@ public class Screen extends Region implements IScreen {
     if (isActiveCapturePrompt) {
       return false;
     }
+    Debug.log(3, "TRACE: Screen: setActiveCapturePrompt");
     isActiveCapturePrompt = true;
     return true;
   }
 
   private static synchronized void resetActiveCapturePrompt() {
+    Debug.log(3, "TRACE: Screen: resetActiveCapturePrompt");
     isActiveCapturePrompt = false;
+    captureObserver = null;
   }
   
   //<editor-fold defaultstate="collapsed" desc="Initialization">
@@ -572,7 +575,7 @@ public class Screen extends Region implements IScreen {
     if (!setActiveCapturePrompt()) {
       return null;
     }
-    Debug.log(4, "TRACE: Screen: userCapture");
+    Debug.log(3, "TRACE: Screen: userCapture");
     waitPrompt = true;
     Thread th = new Thread() {
       @Override
@@ -606,6 +609,7 @@ public class Screen extends Region implements IScreen {
           continue;
         }
         if (ocp.isComplete()) {
+          closePrompt(Screen.getScreen(is));
           simg = ocp.getSelection();
           if (simg != null) {
             Screen.getScreen(is).lastScreenImage = simg;
@@ -624,16 +628,16 @@ public class Screen extends Region implements IScreen {
   }
   
   public String saveCapture(String name, Region reg) {
-    ScreenImage img;
+    ScreenImage simg;
     if (reg == null) {
-      img = userCapture("Capture for image " + name);
+      simg = userCapture("Capture for image " + name);
     } else {
-      img = capture(reg);
+      simg = capture(reg);
     }
-    if (img == null) {
+    if (simg == null) {
       return null;
     } else {
-      return img.saveInBundle(name);
+      return simg.saveInBundle(name);
     }
   }
 
@@ -654,6 +658,7 @@ public class Screen extends Region implements IScreen {
    * @return the region
    */
   public Region selectRegion(final String message) {
+    Debug.log(3, "TRACE: Screen: selectRegion");
     ScreenImage sim = userCapture(message);
     if (sim == null) {
       return null;
